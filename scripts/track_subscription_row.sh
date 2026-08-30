@@ -3,6 +3,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BIN="$ROOT/CloudManager"
 OUT="$ROOT/xref_results"
+if [ ! -f "$BIN" ]; then
+  echo "Extracting CloudManager.zip..."
+  ditto -x -k "$ROOT/CloudManager.zip" "$ROOT"
+fi
+test -f "$BIN" || { echo "CloudManager extraction failed"; exit 2; }
 mkdir -p "$OUT"
 
 echo "macOS: $(sw_vers -productVersion)" | tee "$OUT/environment.txt"

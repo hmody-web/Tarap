@@ -1,6 +1,6 @@
-Codemagic v3: targets subscriptionLogo specifically and records the CoreUI runtime API available on the runner.
+V3.1 fixes the Xcode 26 ARC compile error in the runtime class-list allocation.
 
-Replace the old repository files with these, commit, refresh Codemagic, and run:
+Replace the old repository files with these, commit, refresh Codemagic, then run:
 Extract subscriptionLogo
 
-After the build, download the entire extracted_assets artifact ZIP and send it back.
+Download and send back the entire extracted_assets artifact.

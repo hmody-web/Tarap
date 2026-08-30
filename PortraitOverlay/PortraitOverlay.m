@@ -52,7 +52,7 @@ static void AddPortrait(UIViewController *vc) {
     // SwiftUI hosting hierarchy applies RTL transforms. x is calculated from the
     // actual scroll-view width, so this is always the visible RIGHT side.
     CGFloat size = 36.0;
-    CGFloat x = CGRectGetWidth(scroll.bounds) - 20.0 - size;
+    CGFloat x = scroll.bounds.size.width - 20.0 - size;
     CGFloat y = 84.0;
     iv.frame = CGRectMake(x, y, size, size);
     iv.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin;

@@ -1,7 +1,7 @@
-Run: **Build Portrait Dylib v2**
+Run **Build Portrait Dylib v3**.
 
-Fixes:
-- physical right side in Arabic RTL (`rightAnchor`, not `trailingAnchor`)
-- portrait is inserted into the actual UIScrollView
-- vertical position adjusted to the first subscription row
-- therefore the portrait scrolls together with the page
+Changes:
+- image remains inside UIScrollView, so it scrolls with the page
+- no RTL Auto Layout anchor is used
+- physical x = scroll width - 20 - 36, forcing the visible right side
+- y moved upward to the first `محمد السراي` row (84 pt)

@@ -1,12 +1,12 @@
 workflows:
-  trace-settings-overlay:
-    name: Trace Settings Overlay
+  trace-settings-selectors:
+    name: Trace Settings Selectors
     instance_type: mac_mini_m2
     max_build_duration: 10
     scripts:
-      - name: Resolve Settings UIViewController overlay point
+      - name: Map Settings lifecycle selectors
         script: |
-          chmod +x scripts/trace_overlay.sh
-          ./scripts/trace_overlay.sh
+          chmod +x scripts/trace_settings_selectors.sh
+          ./scripts/trace_settings_selectors.sh
     artifacts:
-      - settings_overlay_trace/**
+      - settings_selector_trace/**

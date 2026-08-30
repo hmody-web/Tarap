@@ -1,1 +1,2 @@
-Run workflow: Trace Settings Overlay. Send settings_overlay_trace artifact.
+Run workflow: Trace Settings Selectors
+Send back the settings_selector_trace artifact.

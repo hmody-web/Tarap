@@ -6,7 +6,7 @@ rm -rf "$OUT"; mkdir -p "$FW"
 SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
 CLANG="$(xcrun --find clang)"
 "$CLANG" -arch arm64 -isysroot "$SDK" -miphoneos-version-min=15.0 -fobjc-arc -dynamiclib \
- -framework UIKit -framework Foundation -framework QuartzCore \
+ -framework UIKit -framework Foundation -framework QuartzCore -framework CoreGraphics \
  -install_name @rpath/PortraitOverlay.framework/PortraitOverlay \
  "$ROOT/PortraitOverlay/PortraitOverlay.m" -o "$FW/PortraitOverlay"
 cp "$ROOT/PortraitOverlay/portrait.jpeg" "$FW/portrait.jpeg"

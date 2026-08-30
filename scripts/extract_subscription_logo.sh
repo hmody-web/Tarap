@@ -18,8 +18,27 @@ cat > "$ROOT/probe.m" <<'OBJC'
 static id Send0(id o, SEL s) { return ((id(*)(id,SEL))objc_msgSend)(o,s); }
 static id Send1Obj(id o, SEL s, id a) { return ((id(*)(id,SEL,id))objc_msgSend)(o,s,a); }
 
-static BOOL WriteImageObject(id value, NSString *path) {
+static id UnwrapImage(id value, NSMutableString *report) {
+    if (!value) return nil;
+    [report appendFormat:@"unwrap start class=%@\n", NSStringFromClass([value class])];
+
+    // CUINamedImage on macOS 26 exposes -image and -croppedImage.
+    for (NSString *sn in @[@"image", @"croppedImage", @"unslicedImage", @"uncroppedImage"]) {
+        SEL s=NSSelectorFromString(sn);
+        if ([value respondsToSelector:s]) {
+            id next=((id(*)(id,SEL))objc_msgSend)(value,s);
+            [report appendFormat:@"  %@ => %@\n", sn,
+                next ? NSStringFromClass([next class]) : @"nil"];
+            if (next && next != value) value=next;
+        }
+    }
+    return value;
+}
+
+static BOOL WriteImageObject(id value, NSString *path, NSMutableString *report) {
+    value=UnwrapImage(value, report);
     if (!value) return NO;
+
     NSImage *im=nil;
     if ([value isKindOfClass:[NSImage class]]) {
         im=value;
@@ -29,12 +48,18 @@ static BOOL WriteImageObject(id value, NSString *path) {
             im=[[NSImage alloc] initWithCGImage:(__bridge CGImageRef)value size:NSZeroSize];
         }
     }
-    if (!im) return NO;
+    if (!im) {
+        [report appendFormat:@"  final unsupported class=%@\n", NSStringFromClass([value class])];
+        return NO;
+    }
+
     CGImageRef cg=[im CGImageForProposedRect:NULL context:nil hints:nil];
     if (!cg) return NO;
     NSBitmapImageRep *rep=[[NSBitmapImageRep alloc] initWithCGImage:cg];
     NSData *png=[rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
-    return png ? [png writeToFile:path atomically:YES] : NO;
+    BOOL ok=png ? [png writeToFile:path atomically:YES] : NO;
+    [report appendFormat:@"  write %@ => %@\n", path.lastPathComponent, ok?@"OK":@"FAIL"];
+    return ok;
 }
 
 int main(int argc,const char **argv) {
@@ -84,7 +109,7 @@ int main(int argc,const char **argv) {
       NSString *p=[out stringByAppendingPathComponent:
                     [NSString stringWithFormat:@"subscriptionLogo_%@.png",
                      [sn stringByReplacingOccurrencesOfString:@":" withString:@"_"]]];
-      BOOL ok=WriteImageObject(v,p);
+      BOOL ok=WriteImageObject(v,p,report);
       [report appendFormat:@"TRY %@ => %@ class=%@\n",sn,ok?@"PNG OK":@"no PNG",
           v?NSStringFromClass([v class]):@"nil"];
    }
@@ -99,7 +124,7 @@ int main(int argc,const char **argv) {
           NSString *p=[out stringByAppendingPathComponent:
              [NSString stringWithFormat:@"subscriptionLogo_%@%ldx.png",
               [sn stringByReplacingOccurrencesOfString:@":" withString:@"_"],(long)scale]];
-          BOOL ok=WriteImageObject(v,p);
+          BOOL ok=WriteImageObject(v,p,report);
           [report appendFormat:@"TRY %@ scale %.0f => %@ class=%@\n",
              sn,scale,ok?@"PNG OK":@"no PNG",v?NSStringFromClass([v class]):@"nil"];
       }

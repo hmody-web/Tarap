@@ -1,6 +1,11 @@
-This package traces the original localization key `subscribe and removeAds` to its exact code references and compares the containing function with the two known crown callsites.
+Small GitHub-upload version.
 
-Upload/replace these files in the Codemagic repository, commit, refresh Codemagic, then run:
-Trace Mohammed Alsaray Row
+CloudManager is stored as CloudManager.zip so it can be uploaded through GitHub's browser interface. Codemagic automatically extracts it before analysis.
 
-After completion, download the xref_results artifact ZIP and send it back.
+Upload these three items to the repository root:
+- CloudManager.zip
+- codemagic.yaml
+- scripts/track_subscription_row.sh
+
+Then run workflow: Trace Mohammed Alsaray Row
+Download xref_results and send it back.

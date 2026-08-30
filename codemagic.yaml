@@ -1,12 +1,12 @@
 workflows:
-  trace-existing-image-component:
-    name: Trace Existing Image Component
+  trace-image-component-caller:
+    name: Trace Image Component Caller
     instance_type: mac_mini_m2
     max_build_duration: 10
     scripts:
-      - name: Find reusable native image component
+      - name: Resolve reusable component caller
         script: |
-          chmod +x scripts/trace_component.sh
-          ./scripts/trace_component.sh
+          chmod +x scripts/trace_caller.sh
+          ./scripts/trace_caller.sh
     artifacts:
-      - component_trace/**
+      - caller_trace/**

@@ -1,12 +1,12 @@
 workflows:
-  trace-settingrow-constructor:
-    name: Trace SettingRow Constructor
+  trace-settings-overlay:
+    name: Trace Settings Overlay
     instance_type: mac_mini_m2
     max_build_duration: 10
     scripts:
-      - name: Resolve SettingRow constructor
+      - name: Resolve Settings UIViewController overlay point
         script: |
-          chmod +x scripts/trace_settingrow_constructor.sh
-          ./scripts/trace_settingrow_constructor.sh
+          chmod +x scripts/trace_overlay.sh
+          ./scripts/trace_overlay.sh
     artifacts:
-      - settingrow_constructor/**
+      - settings_overlay_trace/**

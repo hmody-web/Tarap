@@ -1,13 +1,7 @@
-# Tarab PortraitOverlay
+Run: **Build Portrait Dylib v2**
 
-Run Codemagic workflow: **Build Tarab Portrait Dylib**
-
-Artifact:
-`build/PortraitOverlay.framework`
-
-This framework contains the real uploaded portrait and a UIKit hook that runs
-after `viewDidAppear:` only for `SettingsViewController`.
-
-Important: building the framework alone does not make Tarab load it. The next
-step is to inject the framework into the IPA and add its LC_LOAD_DYLIB load
-command, then re-sign the app/framework.
+Fixes:
+- physical right side in Arabic RTL (`rightAnchor`, not `trailingAnchor`)
+- portrait is inserted into the actual UIScrollView
+- vertical position adjusted to the first subscription row
+- therefore the portrait scrolls together with the page

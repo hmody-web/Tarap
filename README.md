@@ -1,11 +1,6 @@
-Small GitHub-upload version.
+FAST version. Uses one radare2 process and one lightweight analysis pass instead of repeatedly running full `aaa`.
 
-CloudManager is stored as CloudManager.zip so it can be uploaded through GitHub's browser interface. Codemagic automatically extracts it before analysis.
+Upload these to the repo root, commit, refresh Codemagic, and run:
+FAST Trace Mohammed Alsaray Row
 
-Upload these three items to the repository root:
-- CloudManager.zip
-- codemagic.yaml
-- scripts/track_subscription_row.sh
-
-Then run workflow: Trace Mohammed Alsaray Row
-Download xref_results and send it back.
+Then send the xref_results artifact.

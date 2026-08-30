@@ -1,12 +1,12 @@
 workflows:
-  trace-subscription-row:
-    name: Trace Mohammed Alsaray Row
+  fast-trace-subscription-row:
+    name: FAST Trace Mohammed Alsaray Row
     instance_type: mac_mini_m2
-    max_build_duration: 30
+    max_build_duration: 15
     scripts:
-      - name: Trace subscription row to icon
+      - name: Fast trace row to icon
         script: |
-          chmod +x scripts/track_subscription_row.sh
-          ./scripts/track_subscription_row.sh
+          chmod +x scripts/fast_trace.sh
+          ./scripts/fast_trace.sh
     artifacts:
       - xref_results/**

@@ -1,12 +1,12 @@
 workflows:
-  trace-native-uiimageview:
-    name: Trace Native UIImageView
+  trace-selector-xrefs:
+    name: Trace UIKit Selector Xrefs
     instance_type: mac_mini_m2
     max_build_duration: 10
     scripts:
-      - name: Find native UIImageView sequence
+      - name: Resolve UIKit selector xrefs
         script: |
-          chmod +x scripts/trace_native_uiimageview.sh
-          ./scripts/trace_native_uiimageview.sh
+          chmod +x scripts/trace_selector_xrefs.sh
+          ./scripts/trace_selector_xrefs.sh
     artifacts:
-      - native_uiimageview_trace/**
+      - selector_xref_trace/**

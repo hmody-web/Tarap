@@ -1,2 +1,2 @@
-Run workflow: Trace Native UIImageView
-Send back the native_uiimageview_trace artifact.
+Run workflow: Trace UIKit Selector Xrefs
+Send back the selector_xref_trace artifact.

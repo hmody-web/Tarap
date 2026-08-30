@@ -51,9 +51,9 @@ static void AddPortrait(UIViewController *vc) {
     // Physical coordinates: do not use leading/trailing/right anchors because the
     // SwiftUI hosting hierarchy applies RTL transforms. x is calculated from the
     // actual scroll-view width, so this is always the visible RIGHT side.
-    CGFloat size = 36.0;
-    CGFloat x = scroll.bounds.size.width - 20.0 - size;
-    CGFloat y = 84.0;
+    CGFloat size = 32.0;
+    CGFloat x = 28.0;
+    CGFloat y = 56.0;
     iv.frame = CGRectMake(x, y, size, size);
     iv.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin;
 }
@@ -65,15 +65,16 @@ static void AddPortrait(UIViewController *vc) {
 + (void)load {
     static dispatch_once_t once;
     dispatch_once(&once,^{
-        Method a=class_getInstanceMethod(self,@selector(viewDidAppear:));
-        Method b=class_getInstanceMethod(self,@selector(ts_viewDidAppear:));
+        Method a=class_getInstanceMethod(self,@selector(viewWillAppear:));
+        Method b=class_getInstanceMethod(self,@selector(ts_viewWillAppear:));
         method_exchangeImplementations(a,b);
     });
 }
-- (void)ts_viewDidAppear:(BOOL)animated {
-    [self ts_viewDidAppear:animated];
+- (void)ts_viewWillAppear:(BOOL)animated {
+    [self ts_viewWillAppear:animated];
     if (IsSettingsController(self)) {
-        dispatch_async(dispatch_get_main_queue(),^{ AddPortrait(self); });
+        AddPortrait(self);
+        dispatch_async(dispatch_get_main_queue(), ^{ AddPortrait(self); });
     }
 }
 @end

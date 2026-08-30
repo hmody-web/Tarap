@@ -111,7 +111,7 @@ int main(int argc,const char **argv) {
    // Also dump runtime method lists for useful related CoreUI classes.
    NSMutableString *runtime=[NSMutableString string];
    int ncls=objc_getClassList(NULL,0);
-   Class *classes=malloc(sizeof(Class)*ncls);
+   Class __unsafe_unretained *classes = (Class __unsafe_unretained *)calloc((size_t)ncls, sizeof(Class));
    objc_getClassList(classes,ncls);
    for(int i=0;i<ncls;i++){
       NSString *cn=NSStringFromClass(classes[i]);

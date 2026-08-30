@@ -22,10 +22,10 @@ strings -a -t x "$BIN" | grep -niEi '^(.*)(UIImage|imageNamed:)$|UIImage|imageNa
  > "$OUT/uiimage_strings.txt" || true
 
 {
- echo "=== IMPORTS ==="; cat "$OUT/imports.txt" | head -200
- echo; echo "=== INDIRECT ==="; cat "$OUT/indirect_relevant.txt" | head -200
- echo; echo "=== NATIVE CALL WINDOWS ==="; cat "$OUT/native_uiimage_calls.txt" | head -600
- echo; echo "=== STRINGS ==="; cat "$OUT/uiimage_strings.txt" | head -100
+ echo "=== IMPORTS ==="; sed -n '1,200p' "$OUT/imports.txt"
+ echo; echo "=== INDIRECT ==="; sed -n '1,200p' "$OUT/indirect_relevant.txt"
+ echo; echo "=== NATIVE CALL WINDOWS ==="; sed -n '1,600p' "$OUT/native_uiimage_calls.txt"
+ echo; echo "=== STRINGS ==="; sed -n '1,100p' "$OUT/uiimage_strings.txt"
 } > "$OUT/summary.txt"
 rm -f "$OUT/nm.txt" "$OUT/indirect.txt" "$OUT/disasm.tmp"
 cat "$OUT/summary.txt"

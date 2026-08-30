@@ -1,6 +1,6 @@
-V3.1 fixes the Xcode 26 ARC compile error in the runtime class-list allocation.
+V4: macOS 26 CUINamedImage support.
 
-Replace the old repository files with these, commit, refresh Codemagic, then run:
-Extract subscriptionLogo
+The previous artifact proved subscriptionLogo is returned as CUINamedImage and that CUINamedImage exposes the `image` and `croppedImage` selectors. V4 unwraps those objects and writes the underlying image as PNG.
 
-Download and send back the entire extracted_assets artifact.
+Run workflow: Extract subscriptionLogo V4
+Then download the complete extracted_assets artifact and send it back.

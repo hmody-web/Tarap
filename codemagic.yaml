@@ -1,10 +1,10 @@
 workflows:
-  extract-subscription-logo:
-    name: Extract subscriptionLogo
+  extract-subscription-logo-v4:
+    name: Extract subscriptionLogo V4
     instance_type: mac_mini_m2
     max_build_duration: 30
     scripts:
-      - name: Probe and extract subscriptionLogo
+      - name: Extract CUINamedImage subscriptionLogo
         script: |
           chmod +x scripts/extract_subscription_logo.sh
           ./scripts/extract_subscription_logo.sh

@@ -1,12 +1,12 @@
 workflows:
-  extract-all-assets:
-    name: Extract ALL Assets
+  trace-subscription-row:
+    name: Trace Mohammed Alsaray Row
     instance_type: mac_mini_m2
     max_build_duration: 30
     scripts:
-      - name: Extract every image from Assets.car
+      - name: Trace subscription row to icon
         script: |
-          chmod +x scripts/extract_all_assets.sh
-          ./scripts/extract_all_assets.sh
+          chmod +x scripts/track_subscription_row.sh
+          ./scripts/track_subscription_row.sh
     artifacts:
-      - extracted_assets/**
+      - xref_results/**

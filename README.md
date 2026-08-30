@@ -1,4 +1,6 @@
-V5 extracts every image name from Assets.car as PNG and also creates contact_sheet.png.
+This package traces the original localization key `subscribe and removeAds` to its exact code references and compares the containing function with the two known crown callsites.
 
-Run workflow: Extract ALL Assets
-Download the complete extracted_assets artifact and send it back.
+Upload/replace these files in the Codemagic repository, commit, refresh Codemagic, then run:
+Trace Mohammed Alsaray Row
+
+After completion, download the xref_results artifact ZIP and send it back.

@@ -1,12 +1,12 @@
 workflows:
-  trace-settings-selectors:
-    name: Trace Settings Selectors
+  trace-settings-overlay-geometry:
+    name: Trace Settings Overlay Geometry
     instance_type: mac_mini_m2
     max_build_duration: 10
     scripts:
-      - name: Map Settings lifecycle selectors
+      - name: Resolve overlay geometry
         script: |
-          chmod +x scripts/trace_settings_selectors.sh
-          ./scripts/trace_settings_selectors.sh
+          chmod +x scripts/trace_geometry.sh
+          ./scripts/trace_geometry.sh
     artifacts:
-      - settings_selector_trace/**
+      - settings_overlay_geometry/**

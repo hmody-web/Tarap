@@ -1,2 +1,2 @@
-Run workflow: Trace Settings Selectors
-Send back the settings_selector_trace artifact.
+Run workflow: Trace Settings Overlay Geometry
+Send back the settings_overlay_geometry artifact.

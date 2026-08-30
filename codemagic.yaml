@@ -1,10 +1,10 @@
 workflows:
-  build-portrait-dylib-v3:
-    name: Build Portrait Dylib v3
+  build-portrait-dylib-early:
+    name: Build Portrait Dylib Early
     instance_type: mac_mini_m2
     max_build_duration: 10
     scripts:
-      - name: Build physical-right scrolling portrait
+      - name: Build early-loading portrait overlay
         script: |
           chmod +x scripts/build.sh
           ./scripts/build.sh

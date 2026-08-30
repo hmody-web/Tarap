@@ -1,0 +1,759 @@
+=== IMPORTS ===
+596:                 (undefined) external _$s7SwiftUI5ImageV02uiC0ACSo7UIImageC_tcfC (from SwiftUI)
+597:                 (undefined) external _$s7SwiftUI5ImageV10systemNameACSS_tcfC (from SwiftUI)
+598:                 (undefined) external _$s7SwiftUI5ImageV11antialiasedyACSbF (from SwiftUI)
+599:                 (undefined) external _$s7SwiftUI5ImageV12ResizingModeO7stretchyA2EmFWC (from SwiftUI)
+600:                 (undefined) external _$s7SwiftUI5ImageV12ResizingModeOMa (from SwiftUI)
+601:                 (undefined) external _$s7SwiftUI5ImageV12ResizingModeOMn (from SwiftUI)
+602:                 (undefined) external _$s7SwiftUI5ImageV13InterpolationOMa (from SwiftUI)
+603:                 (undefined) external _$s7SwiftUI5ImageV13InterpolationOMn (from SwiftUI)
+604:                 (undefined) external _$s7SwiftUI5ImageV13interpolationyA2C13InterpolationOF (from SwiftUI)
+605:                 (undefined) external _$s7SwiftUI5ImageV13renderingModeyA2C017TemplateRenderingE0OSgF (from SwiftUI)
+606:                 (undefined) external _$s7SwiftUI5ImageV21TemplateRenderingModeOMa (from SwiftUI)
+607:                 (undefined) external _$s7SwiftUI5ImageV21TemplateRenderingModeOMn (from SwiftUI)
+608:                 (undefined) external _$s7SwiftUI5ImageV9resizable9capInsets12resizingModeAcA04EdgeF0V_AC08ResizingH0OtF (from SwiftUI)
+609:                 (undefined) external _$s7SwiftUI5ImageVAA4ViewAAWP (from SwiftUI)
+610:                 (undefined) external _$s7SwiftUI5ImageVMn (from SwiftUI)
+611:                 (undefined) external _$s7SwiftUI5ImageVN (from SwiftUI)
+612:                 (undefined) external _$s7SwiftUI5ImageV_6bundleACSS_So8NSBundleCSgtcfC (from SwiftUI)
+1963:                 (undefined) external _OBJC_CLASS_$_UIImage (from UIKit)
+1964:                 (undefined) external _OBJC_CLASS_$_UIImagePickerController (from UIKit)
+1965:                 (undefined) external _OBJC_CLASS_$_UIImageSymbolConfiguration (from UIKit)
+1966:                 (undefined) external _OBJC_CLASS_$_UIImageView (from UIKit)
+2050:                 (undefined) external _OBJC_METACLASS_$_UIImageView (from UIKit)
+2153:                 (undefined) external _UIImageJPEGRepresentation (from UIKit)
+2154:                 (undefined) external _UIImagePNGRepresentation (from UIKit)
+2155:                 (undefined) external _UIImagePickerControllerImageURL (from UIKit)
+2156:                 (undefined) external _UIImagePickerControllerMediaType (from UIKit)
+2157:                 (undefined) external _UIImagePickerControllerMediaURL (from UIKit)
+2158:                 (undefined) external _UIImagePickerControllerOriginalImage (from UIKit)
+2837:                 (undefined) external _objc_getClass (from libobjc)
+2844:                 (undefined) external _objc_msgSend (from libobjc)
+2845:                 (undefined) external _objc_msgSendSuper2 (from libobjc)
+3002:                 (undefined) external _sel_registerName (from libobjc)
+11674:000000010499b0f0 (__DATA_CONST,__const) weak external _FBLink_UIImage_METAUIGraphics
+
+=== INDIRECT ===
+330:0x00000001038bc968  9093 _$s7SwiftUI5ImageV02uiC0ACSo7UIImageC_tcfC
+1057:0x00000001038beb7c 10650 _UIImageJPEGRepresentation
+1058:0x00000001038beb88 10651 _UIImagePNGRepresentation
+4204:0x00000001038c7f00 11334 _objc_getClass
+4211:0x00000001038c7f54 11341 _objc_msgSend
+4212:0x00000001038c7f60 11342 _objc_msgSendSuper2
+4369:0x00000001038c86bc 11499 _sel_registerName
+5709:0x000000010470a2b8 10650 _UIImageJPEGRepresentation
+5710:0x000000010470a2c0 10651 _UIImagePNGRepresentation
+5711:0x000000010470a2c8 10652 _UIImagePickerControllerImageURL
+5712:0x000000010470a2d0 10653 _UIImagePickerControllerMediaType
+5713:0x000000010470a2d8 10654 _UIImagePickerControllerMediaURL
+5714:0x000000010470a2e0 10655 _UIImagePickerControllerOriginalImage
+5797:0x000000010470a578 11334 _objc_getClass
+5804:0x000000010470a5b0 11341 _objc_msgSend
+5805:0x000000010470a5b8 11341 _objc_msgSend
+5806:0x000000010470a5c0 11342 _objc_msgSendSuper2
+5872:0x000000010470a7d0 11499 _sel_registerName
+6807:0x000000010470c508  9093 _$s7SwiftUI5ImageV02uiC0ACSo7UIImageC_tcfC
+
+=== NATIVE CALL WINDOWS ===
+11621497-0000000102c54f50	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621498-0000000102c54f54	mov	x20, x0
+11621499-0000000102c54f58	ldr	x0, [x19, #0x28]
+11621500-0000000102c54f5c	bl	0x103934860
+11621501-0000000102c54f60	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621502-0000000102c54f64	cbz	x0, 0x102c54ff8
+11621503-0000000102c54f68	mov	x21, x0
+11621504-0000000102c54f6c	ldr	x0, [x19, #0x28]
+11621505-0000000102c54f70	bl	0x103934860
+11621506-0000000102c54f74	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621507-0000000102c54f78	mov	x22, x0
+11621508-0000000102c54f7c	bl	0x1038fef40
+11621509-0000000102c54f80	mov	x23, x0
+11621510-0000000102c54f84	bl	0x1038c8008 ; symbol stub for: _objc_release_x22
+11621511-0000000102c54f88	bl	0x1038c7ffc ; symbol stub for: _objc_release_x21
+11621512-0000000102c54f8c	cmp	x23, #0x6
+11621513-0000000102c54f90	b.lo	0x102c54ff8
+11621514-0000000102c54f94	ldr	x21, [x19, #0x30]
+11621515-0000000102c54f98	bl	0x1038be924 ; symbol stub for: _NSHomeDirectory
+11621516-0000000102c54f9c	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621517-0000000102c54fa0	mov	x22, x0
+11621518-0000000102c54fa4	adrp	x2, 7541 ; 0x1049c9000
+11621519-0000000102c54fa8	add	x2, x2, #0xea8 ; Objc cfstring ref: @"bad cfstring ref"
+11621520-0000000102c54fac	bl	0x103932cc0
+11621521-0000000102c54fb0	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621522-0000000102c54fb4	mov	x23, x0
+11621523-0000000102c54fb8	ldr	x0, [x19, #0x28]
+11621524-0000000102c54fbc	bl	0x103934860
+11621525-0000000102c54fc0	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621526-0000000102c54fc4	mov	x24, x0
+11621527-0000000102c54fc8	mov	x0, x23
+11621528-0000000102c54fcc	mov	x2, x24
+11621529-0000000102c54fd0	bl	0x103932cc0
+11621530-0000000102c54fd4	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621531-0000000102c54fd8	mov	x25, x0
+11621532-0000000102c54fdc	mov	x0, x21
+11621533-0000000102c54fe0	mov	x2, x25
+11621534-0000000102c54fe4	bl	0x1038e62e0
+11621535-0000000102c54fe8	bl	0x1038c802c ; symbol stub for: _objc_release_x25
+11621536-0000000102c54fec	bl	0x1038c8020 ; symbol stub for: _objc_release_x24
+11621537-0000000102c54ff0	bl	0x1038c8014 ; symbol stub for: _objc_release_x23
+11621538-0000000102c54ff4	bl	0x1038c8008 ; symbol stub for: _objc_release_x22
+11621539-0000000102c54ff8	bl	0x1038be924 ; symbol stub for: _NSHomeDirectory
+11621540-0000000102c54ffc	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621541-0000000102c55000	mov	x22, x0
+11621542-0000000102c55004	adrp	x2, 7540 ; 0x1049c9000
+11621543-0000000102c55008	add	x2, x2, #0xea8 ; Objc cfstring ref: @"bad cfstring ref"
+11621544-0000000102c5500c	bl	0x103932cc0
+11621545-0000000102c55010	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621546-0000000102c55014	mov	x23, x0
+11621547-0000000102c55018	mov	x2, x20
+11621548-0000000102c5501c	bl	0x103932cc0
+11621549-0000000102c55020	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621550-0000000102c55024	mov	x21, x0
+11621551-0000000102c55028	bl	0x1038c8014 ; symbol stub for: _objc_release_x23
+11621552-0000000102c5502c	bl	0x1038c8008 ; symbol stub for: _objc_release_x22
+11621553-0000000102c55030	ldr	x0, [x19, #0x30]
+11621554-0000000102c55034	mov	x2, x21
+11621555-0000000102c55038	bl	0x1038e62e0
+11621556-0000000102c5503c	ldr	x0, [x19, #0x20]
+11621557:0000000102c55040	bl	0x1038beb88 ; symbol stub for: _UIImagePNGRepresentation
+11621558-0000000102c55044	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621559-0000000102c55048	mov	x22, x0
+11621560-0000000102c5504c	mov	x2, x21
+11621561-0000000102c55050	mov	w3, #0x1
+11621562-0000000102c55054	bl	0x10393c8c0
+11621563-0000000102c55058	bl	0x1038c8008 ; symbol stub for: _objc_release_x22
+11621564-0000000102c5505c	ldp	x0, x22, [x19, #0x28]
+11621565-0000000102c55060	bl	0x103939220
+11621566-0000000102c55064	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621567-0000000102c55068	mov	x23, x0
+11621568-0000000102c5506c	bl	0x1039090e0
+11621569-0000000102c55070	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621570-0000000102c55074	mov	x24, x0
+11621571-0000000102c55078	adrp	x3, 7541 ; 0x1049ca000
+11621572-0000000102c5507c	add	x3, x3, #0x248 ; Objc cfstring ref: @"bad cfstring ref"
+11621573-0000000102c55080	mov	x0, x22
+11621574-0000000102c55084	mov	x2, x24
+11621575-0000000102c55088	mov	x4, x20
+11621576-0000000102c5508c	bl	0x1039379c0
+11621577-0000000102c55090	bl	0x1038c8020 ; symbol stub for: _objc_release_x24
+11621578-0000000102c55094	bl	0x1038c8014 ; symbol stub for: _objc_release_x23
+11621579-0000000102c55098	ldr	x0, [x19, #0x28]
+11621580-0000000102c5509c	mov	x2, x20
+11621581-0000000102c550a0	bl	0x10392ac40
+11621582-0000000102c550a4	bl	0x1038c7ff0 ; symbol stub for: _objc_release_x20
+11621583-0000000102c550a8	bl	0x1038c7ffc ; symbol stub for: _objc_release_x21
+11621584-0000000102c550ac	ldp	x0, x8, [x19, #0x28]
+11621585-0000000102c550b0	str	x8, [sp]
+11621586-0000000102c550b4	bl	0x103903640
+11621587-0000000102c550b8	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621588-0000000102c550bc	mov	x20, x0
+11621589-0000000102c550c0	ldr	x0, [x19, #0x28]
+11621590-0000000102c550c4	bl	0x103939220
+11621591-0000000102c550c8	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621592-0000000102c550cc	mov	x21, x0
+11621593-0000000102c550d0	bl	0x1039090e0
+11621594-0000000102c550d4	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621595-0000000102c550d8	mov	x22, x0
+11621596-0000000102c550dc	bl	0x103909140
+11621597-0000000102c550e0	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621598-0000000102c550e4	mov	x23, x0
+11621599-0000000102c550e8	mov	x0, x20
+11621600-0000000102c550ec	mov	x2, x23
+11621601-0000000102c550f0	bl	0x103932ce0
+11621602-0000000102c550f4	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621603-0000000102c550f8	mov	x25, x0
+11621604-0000000102c550fc	ldr	x0, [x19, #0x28]
+11621605-0000000102c55100	bl	0x103939220
+11621606-0000000102c55104	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621607-0000000102c55108	mov	x26, x0
+11621608-0000000102c5510c	bl	0x1039090e0
+11621609-0000000102c55110	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621610-0000000102c55114	mov	x27, x0
+11621611-0000000102c55118	bl	0x103932d20
+11621612-0000000102c5511c	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11621613-0000000102c55120	mov	x28, x0
+11621614-0000000102c55124	adrp	x8, 6837 ; 0x10470a000
+11621615-0000000102c55128	ldr	x8, [x8, #0x8d8] ; literal pool symbol address: __NSConcreteStackBlock
+11621616-0000000102c5512c	ldr	x24, [x19, #0x38]
+11621617-0000000102c55130	str	x8, [sp, #0x8]
+11621618-0000000102c55134	adrp	x8, 6386 ; 0x104547000
+11621619-0000000102c55138	ldr	d0, [x8, #0xb68]
+11621620-0000000102c5513c	adrp	x8, 0 ; 0x102c55000
+11621621-0000000102c55140	add	x8, x8, #0x1e8
+11621622-0000000102c55144	str	d0, [sp, #0x10]
+11621623-0000000102c55148	adrp	x9, 7469 ; 0x104982000
+11621624-0000000102c5514c	add	x9, x9, #0x4d0
+11621625-0000000102c55150	stp	x8, x9, [sp, #0x18]
+11621626-0000000102c55154	ldr	x8, [x19, #0x28]
+11621627-0000000102c55158	bl	0x1038c817c ; symbol stub for: _objc_retain_x8
+11621628-0000000102c5515c	str	x0, [sp, #0x28]
+11621629-0000000102c55160	ldr	x8, [x19, #0x38]
+11621630-0000000102c55164	bl	0x1038c817c ; symbol stub for: _objc_retain_x8
+11621631-0000000102c55168	str	x0, [sp, #0x30]
+11621632-0000000102c5516c	ldr	x8, [x19, #0x40]
+11621633-0000000102c55170	bl	0x1038c817c ; symbol stub for: _objc_retain_x8
+11621634-0000000102c55174	str	x0, [sp, #0x38]
+11621635-0000000102c55178	add	x5, sp, #0x8
+11621636-0000000102c5517c	ldr	x0, [sp]
+11621637-0000000102c55180	mov	x2, x25
+11621638-0000000102c55184	mov	x3, x28
+11621639-0000000102c55188	mov	x4, x24
+11621640-0000000102c5518c	bl	0x1039104a0
+11621641-0000000102c55190	bl	0x1038c8050 ; symbol stub for: _objc_release_x28
+11621642-0000000102c55194	bl	0x1038c8044 ; symbol stub for: _objc_release_x27
+11621643-0000000102c55198	bl	0x1038c8038 ; symbol stub for: _objc_release_x26
+11621644-0000000102c5519c	bl	0x1038c802c ; symbol stub for: _objc_release_x25
+11621645-0000000102c551a0	bl	0x1038c8014 ; symbol stub for: _objc_release_x23
+11621646-0000000102c551a4	bl	0x1038c8008 ; symbol stub for: _objc_release_x22
+11621647-0000000102c551a8	bl	0x1038c7ffc ; symbol stub for: _objc_release_x21
+11621648-0000000102c551ac	bl	0x1038c7ff0 ; symbol stub for: _objc_release_x20
+11621649-0000000102c551b0	ldr	x8, [sp, #0x38]
+11621650-0000000102c551b4	bl	0x1038c805c ; symbol stub for: _objc_release_x8
+11621651-0000000102c551b8	ldr	x8, [sp, #0x30]
+11621652-0000000102c551bc	bl	0x1038c805c ; symbol stub for: _objc_release_x8
+11621653-0000000102c551c0	ldr	x8, [sp, #0x28]
+11621654-0000000102c551c4	bl	0x1038c805c ; symbol stub for: _objc_release_x8
+11621655-0000000102c551c8	ldp	x29, x30, [sp, #0x90]
+11621656-0000000102c551cc	ldp	x20, x19, [sp, #0x80]
+11621657-0000000102c551d0	ldp	x22, x21, [sp, #0x70]
+--
+11625929-0000000102c59490	bl	0x1038c805c ; symbol stub for: _objc_release_x8
+11625930-0000000102c59494	bl	0x1038c8050 ; symbol stub for: _objc_release_x28
+11625931-0000000102c59498	ldr	x8, [sp, #0x60]
+11625932-0000000102c5949c	bl	0x1038c805c ; symbol stub for: _objc_release_x8
+11625933-0000000102c594a0	ldr	x8, [sp, #0x58]
+11625934-0000000102c594a4	bl	0x1038c805c ; symbol stub for: _objc_release_x8
+11625935-0000000102c594a8	ldr	x8, [sp, #0x48]
+11625936-0000000102c594ac	bl	0x1038c805c ; symbol stub for: _objc_release_x8
+11625937-0000000102c594b0	bl	0x1038c8044 ; symbol stub for: _objc_release_x27
+11625938-0000000102c594b4	ldr	x25, [sp, #0x68]
+11625939-0000000102c594b8	ldr	w8, [sp, #0x40]
+11625940-0000000102c594bc	tbnz	w8, #0x0, 0x102c591f0
+11625941-0000000102c594c0	adrp	x5, 7519 ; 0x1049b8000
+11625942-0000000102c594c4	add	x5, x5, #0xe68 ; Objc cfstring ref: @"bad cfstring ref"
+11625943-0000000102c594c8	mov	x0, x26
+11625944-0000000102c594cc	mov	x2, x19
+11625945-0000000102c594d0	mov	x3, x25
+11625946-0000000102c594d4	mov	x4, #0x0
+11625947-0000000102c594d8	mov	x6, x22
+11625948-0000000102c594dc	mov	x7, x23
+11625949-0000000102c594e0	bl	0x1038d7800
+11625950-0000000102c594e4	ldr	x8, [sp, #0x88]
+11625951-0000000102c594e8	bl	0x1038c805c ; symbol stub for: _objc_release_x8
+11625952-0000000102c594ec	ldr	x8, [sp, #0x80]
+11625953-0000000102c594f0	bl	0x1038c805c ; symbol stub for: _objc_release_x8
+11625954-0000000102c594f4	b	0x102c592d0
+11625955-0000000102c594f8	sub	sp, sp, #0x50
+11625956-0000000102c594fc	stp	x24, x23, [sp, #0x10]
+11625957-0000000102c59500	stp	x22, x21, [sp, #0x20]
+11625958-0000000102c59504	stp	x20, x19, [sp, #0x30]
+11625959-0000000102c59508	stp	x29, x30, [sp, #0x40]
+11625960-0000000102c5950c	add	x29, sp, #0x40
+11625961-0000000102c59510	mov	x20, x1
+11625962-0000000102c59514	mov	x19, x0
+11625963-0000000102c59518	bl	0x1038c80c8 ; symbol stub for: _objc_retain_x2
+11625964-0000000102c5951c	str	x0, [sp, #0x8]
+11625965-0000000102c59520	cbz	w20, 0x102c595f0
+11625966-0000000102c59524	mov	x1, x0
+11625967-0000000102c59528	adrp	x8, 7873 ; 0x104b1a000
+11625968-0000000102c5952c	ldr	x20, [x8, #0xef8] ; Objc class ref: bad class ref
+11625969-0000000102c59530	adrp	x8, 7873 ; 0x104b1a000
+11625970-0000000102c59534	ldr	x0, [x8, #0xed8] ; Objc class ref: bad class ref
+11625971-0000000102c59538	mov	x2, x1
+11625972-0000000102c5953c	bl	0x1038e5160
+11625973-0000000102c59540	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11625974-0000000102c59544	mov	x21, x0
+11625975-0000000102c59548	mov	x0, x20
+11625976-0000000102c5954c	mov	x2, x21
+11625977-0000000102c59550	bl	0x1038f34c0
+11625978-0000000102c59554	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11625979-0000000102c59558	mov	x20, x0
+11625980-0000000102c5955c	bl	0x1038c7ffc ; symbol stub for: _objc_release_x21
+11625981-0000000102c59560	adrp	x8, 7873 ; 0x104b1a000
+11625982-0000000102c59564	ldr	x0, [x8, #0xee8] ; Objc class ref: bad class ref
+11625983-0000000102c59568	mov	w8, #0x42f00000
+11625984-0000000102c5956c	fmov	s0, w8
+11625985-0000000102c59570	mov	x2, x20
+11625986-0000000102c59574	bl	0x1038f3500
+11625987-0000000102c59578	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11625988-0000000102c5957c	mov	x21, x0
+11625989:0000000102c59580	bl	0x1038beb88 ; symbol stub for: _UIImagePNGRepresentation
+11625990-0000000102c59584	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11625991-0000000102c59588	mov	x22, x0
+11625992-0000000102c5958c	adrp	x8, 7873 ; 0x104b1a000
+11625993-0000000102c59590	ldr	x0, [x8, #0xf28] ; Objc class ref: bad class ref
+11625994-0000000102c59594	bl	0x1038e5d40
+11625995-0000000102c59598	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11625996-0000000102c5959c	mov	x23, x0
+11625997-0000000102c595a0	ldr	x2, [x19, #0x20]
+11625998-0000000102c595a4	mov	x3, #0x0
+11625999-0000000102c595a8	bl	0x10390fca0
+11626000-0000000102c595ac	bl	0x1038c8014 ; symbol stub for: _objc_release_x23
+11626001-0000000102c595b0	ldr	x2, [x19, #0x20]
+11626002-0000000102c595b4	mov	x0, x22
+11626003-0000000102c595b8	mov	w3, #0x10000000
+11626004-0000000102c595bc	mov	x4, #0x0
+11626005-0000000102c595c0	bl	0x10393c900
+11626006-0000000102c595c4	ldp	x0, x2, [x19, #0x28]
+11626007-0000000102c595c8	ldp	x3, x5, [x19, #0x38]
+11626008-0000000102c595cc	ldr	x7, [x19, #0x48]
+11626009-0000000102c595d0	adrp	x6, 7519 ; 0x1049b8000
+11626010-0000000102c595d4	add	x6, x6, #0xe68 ; Objc cfstring ref: @"bad cfstring ref"
+11626011-0000000102c595d8	ldr	x4, [sp, #0x8]
+11626012-0000000102c595dc	bl	0x1038d7800
+11626013-0000000102c595e0	bl	0x1038c8008 ; symbol stub for: _objc_release_x22
+11626014-0000000102c595e4	bl	0x1038c7ffc ; symbol stub for: _objc_release_x21
+11626015-0000000102c595e8	bl	0x1038c7ff0 ; symbol stub for: _objc_release_x20
+11626016-0000000102c595ec	b	0x102c5960c
+11626017-0000000102c595f0	ldp	x0, x2, [x19, #0x28]
+11626018-0000000102c595f4	ldp	x3, x5, [x19, #0x38]
+11626019-0000000102c595f8	ldr	x7, [x19, #0x48]
+11626020-0000000102c595fc	adrp	x6, 7519 ; 0x1049b8000
+11626021-0000000102c59600	add	x6, x6, #0xe68 ; Objc cfstring ref: @"bad cfstring ref"
+11626022-0000000102c59604	mov	x4, #0x0
+11626023-0000000102c59608	bl	0x1038d7800
+11626024-0000000102c5960c	ldr	x0, [sp, #0x8]
+11626025-0000000102c59610	ldp	x29, x30, [sp, #0x40]
+11626026-0000000102c59614	ldp	x20, x19, [sp, #0x30]
+11626027-0000000102c59618	ldp	x22, x21, [sp, #0x20]
+11626028-0000000102c5961c	ldp	x24, x23, [sp, #0x10]
+11626029-0000000102c59620	add	sp, sp, #0x50
+11626030-0000000102c59624	b	0x1038c7fb4 ; symbol stub for: _objc_release
+11626031-0000000102c59628	sub	sp, sp, #0xf0
+11626032-0000000102c5962c	stp	x28, x27, [sp, #0x90]
+11626033-0000000102c59630	stp	x26, x25, [sp, #0xa0]
+11626034-0000000102c59634	stp	x24, x23, [sp, #0xb0]
+11626035-0000000102c59638	stp	x22, x21, [sp, #0xc0]
+11626036-0000000102c5963c	stp	x20, x19, [sp, #0xd0]
+11626037-0000000102c59640	stp	x29, x30, [sp, #0xe0]
+11626038-0000000102c59644	add	x29, sp, #0xe0
+11626039-0000000102c59648	mov	x21, x7
+11626040-0000000102c5964c	mov	x23, x6
+11626041-0000000102c59650	mov	x22, x5
+11626042-0000000102c59654	mov	x25, x4
+11626043-0000000102c59658	mov	x20, x3
+11626044-0000000102c5965c	mov	x24, x0
+11626045-0000000102c59660	bl	0x1038c80c8 ; symbol stub for: _objc_retain_x2
+11626046-0000000102c59664	mov	x19, x0
+11626047-0000000102c59668	bl	0x1038c80d4 ; symbol stub for: _objc_retain_x20
+11626048-0000000102c5966c	mov	x20, x0
+11626049-0000000102c59670	bl	0x1038c8110 ; symbol stub for: _objc_retain_x25
+11626050-0000000102c59674	str	x0, [sp, #0x28]
+11626051-0000000102c59678	bl	0x1038c80ec ; symbol stub for: _objc_retain_x22
+11626052-0000000102c5967c	mov	x25, x0
+11626053-0000000102c59680	bl	0x1038c80f8 ; symbol stub for: _objc_retain_x23
+11626054-0000000102c59684	str	x0, [sp, #0x30]
+11626055-0000000102c59688	bl	0x1038c80e0 ; symbol stub for: _objc_retain_x21
+11626056-0000000102c5968c	cbz	x19, 0x102c59a84
+11626057-0000000102c59690	stp	x0, x25, [sp, #0x18]
+11626058-0000000102c59694	adrp	x26, 7873 ; 0x104b1a000
+11626059-0000000102c59698	ldr	x0, [x26, #0xf28] ; Objc class ref: bad class ref
+11626060-0000000102c5969c	bl	0x1038e5d40
+11626061-0000000102c596a0	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11626062-0000000102c596a4	str	x0, [sp, #0x10]
+11626063-0000000102c596a8	mov	x2, x19
+11626064-0000000102c596ac	mov	x3, #0x0
+11626065-0000000102c596b0	bl	0x1038db180
+11626066-0000000102c596b4	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11626067-0000000102c596b8	str	x0, [sp, #0x8]
+11626068-0000000102c596bc	bl	0x1038ebca0
+11626069-0000000102c596c0	mov	x28, x0
+11626070-0000000102c596c4	cbz	w28, 0x102c59910
+11626071-0000000102c596c8	bl	0x1038be924 ; symbol stub for: _NSHomeDirectory
+11626072-0000000102c596cc	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11626073-0000000102c596d0	mov	x21, x0
+11626074-0000000102c596d4	adrp	x2, 7521 ; 0x1049ba000
+11626075-0000000102c596d8	add	x2, x2, #0x8 ; Objc cfstring ref: @"bad cfstring ref"
+11626076-0000000102c596dc	bl	0x103932cc0
+11626077-0000000102c596e0	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11626078-0000000102c596e4	mov	x25, x0
+11626079-0000000102c596e8	mov	x2, x20
+11626080-0000000102c596ec	bl	0x103932cc0
+11626081-0000000102c596f0	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11626082-0000000102c596f4	mov	x27, x0
+11626083-0000000102c596f8	bl	0x1038c802c ; symbol stub for: _objc_release_x25
+11626084-0000000102c596fc	bl	0x1038c7ffc ; symbol stub for: _objc_release_x21
+11626085-0000000102c59700	mov	x0, x27
+11626086-0000000102c59704	bl	0x103909140
+11626087-0000000102c59708	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11626088-0000000102c5970c	mov	x21, x0
+11626089-0000000102c59710	adrp	x2, 7519 ; 0x1049b8000
+--
+11648062-0000000102c6ee64	ldp	x24, x23, [sp, #0x40]
+11648063-0000000102c6ee68	add	sp, sp, #0x80
+11648064-0000000102c6ee6c	ret
+11648065-0000000102c6ee70	sub	sp, sp, #0xd0
+11648066-0000000102c6ee74	stp	x28, x27, [sp, #0x70]
+11648067-0000000102c6ee78	stp	x26, x25, [sp, #0x80]
+11648068-0000000102c6ee7c	stp	x24, x23, [sp, #0x90]
+11648069-0000000102c6ee80	stp	x22, x21, [sp, #0xa0]
+11648070-0000000102c6ee84	stp	x20, x19, [sp, #0xb0]
+11648071-0000000102c6ee88	stp	x29, x30, [sp, #0xc0]
+11648072-0000000102c6ee8c	add	x29, sp, #0xc0
+11648073-0000000102c6ee90	mov	x19, x0
+11648074-0000000102c6ee94	adrp	x8, 7852 ; 0x104b1a000
+11648075-0000000102c6ee98	ldr	x0, [x8, #0xf38] ; Objc class ref: bad class ref
+11648076-0000000102c6ee9c	bl	0x1038c7e10 ; symbol stub for: _objc_alloc
+11648077-0000000102c6eea0	ldr	x2, [x19, #0x20]
+11648078-0000000102c6eea4	mov	x3, #0x0
+11648079-0000000102c6eea8	bl	0x1038f7f60
+11648080-0000000102c6eeac	mov	x20, x0
+11648081-0000000102c6eeb0	adrp	x8, 7853 ; 0x104b1b000
+11648082-0000000102c6eeb4	ldr	x0, [x8, #0x318] ; Objc class ref: bad class ref
+11648083-0000000102c6eeb8	bl	0x1038c7e10 ; symbol stub for: _objc_alloc
+11648084-0000000102c6eebc	mov	x2, x20
+11648085-0000000102c6eec0	bl	0x1038f4e40
+11648086-0000000102c6eec4	mov	x22, x0
+11648087-0000000102c6eec8	mov	w2, #0x1
+11648088-0000000102c6eecc	bl	0x103917360
+11648089-0000000102c6eed0	add	x8, sp, #0x58
+11648090-0000000102c6eed4	mov	w0, #0x3
+11648091-0000000102c6eed8	mov	w1, #0x1
+11648092-0000000102c6eedc	bl	0x1038be798 ; symbol stub for: _CMTimeMake
+11648093-0000000102c6eee0	str	xzr, [sp, #0x50]
+11648094-0000000102c6eee4	ldur	q0, [sp, #0x58]
+11648095-0000000102c6eee8	str	q0, [sp, #0x30]
+11648096-0000000102c6eeec	ldr	x8, [sp, #0x68]
+11648097-0000000102c6eef0	str	x8, [sp, #0x40]
+11648098-0000000102c6eef4	add	x2, sp, #0x30
+11648099-0000000102c6eef8	add	x4, sp, #0x50
+11648100-0000000102c6eefc	mov	x0, x22
+11648101-0000000102c6ef00	mov	x3, #0x0
+11648102-0000000102c6ef04	bl	0x1038e2de0
+11648103-0000000102c6ef08	mov	x23, x0
+11648104-0000000102c6ef0c	ldr	x8, [sp, #0x50]
+11648105-0000000102c6ef10	bl	0x1038c817c ; symbol stub for: _objc_retain_x8
+11648106-0000000102c6ef14	mov	x21, x0
+11648107-0000000102c6ef18	adrp	x8, 7852 ; 0x104b1a000
+11648108-0000000102c6ef1c	ldr	x0, [x8, #0xef8] ; Objc class ref: bad class ref
+11648109-0000000102c6ef20	bl	0x1038c7e10 ; symbol stub for: _objc_alloc
+11648110-0000000102c6ef24	mov	x2, x23
+11648111-0000000102c6ef28	bl	0x1038f5200
+11648112-0000000102c6ef2c	cbz	x0, 0x102c6f01c
+11648113-0000000102c6ef30	mov	x24, x0
+11648114-0000000102c6ef34	str	x21, [sp, #0x18]
+11648115-0000000102c6ef38	ldr	x0, [x19, #0x28]
+11648116-0000000102c6ef3c	mov	w8, #0x42f00000
+11648117-0000000102c6ef40	fmov	s0, w8
+11648118-0000000102c6ef44	mov	x2, x24
+11648119-0000000102c6ef48	bl	0x1038f3500
+11648120-0000000102c6ef4c	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11648121-0000000102c6ef50	mov	x23, x0
+11648122:0000000102c6ef54	bl	0x1038beb88 ; symbol stub for: _UIImagePNGRepresentation
+11648123-0000000102c6ef58	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11648124-0000000102c6ef5c	mov	x26, x0
+11648125-0000000102c6ef60	ldr	x2, [x19, #0x30]
+11648126-0000000102c6ef64	str	xzr, [sp, #0x28]
+11648127-0000000102c6ef68	add	x4, sp, #0x28
+11648128-0000000102c6ef6c	mov	w3, #0x10000000
+11648129-0000000102c6ef70	bl	0x10393c900
+11648130-0000000102c6ef74	str	w0, [sp, #0x14]
+11648131-0000000102c6ef78	ldr	x8, [sp, #0x28]
+11648132-0000000102c6ef7c	bl	0x1038c817c ; symbol stub for: _objc_retain_x8
+11648133-0000000102c6ef80	mov	x21, x0
+11648134-0000000102c6ef84	adrp	x8, 7852 ; 0x104b1a000
+11648135-0000000102c6ef88	ldr	x25, [x8, #0xf00] ; Objc class ref: bad class ref
+11648136-0000000102c6ef8c	ldr	x0, [x19, #0x30]
+11648137-0000000102c6ef90	bl	0x103932d40
+11648138-0000000102c6ef94	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11648139-0000000102c6ef98	mov	x28, x0
+11648140-0000000102c6ef9c	str	x0, [sp]
+11648141-0000000102c6efa0	adrp	x2, 7516 ; 0x1049ca000
+11648142-0000000102c6efa4	add	x2, x2, #0x508 ; Objc cfstring ref: @"bad cfstring ref"
+11648143-0000000102c6efa8	mov	x0, x25
+11648144-0000000102c6efac	bl	0x103933160
+11648145-0000000102c6efb0	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11648146-0000000102c6efb4	mov	x25, x0
+11648147-0000000102c6efb8	bl	0x1038c8050 ; symbol stub for: _objc_release_x28
+11648148-0000000102c6efbc	mov	x0, x24
+11648149:0000000102c6efc0	bl	0x1038beb88 ; symbol stub for: _UIImagePNGRepresentation
+11648150-0000000102c6efc4	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11648151-0000000102c6efc8	mov	x27, x0
+11648152-0000000102c6efcc	str	x21, [sp, #0x20]
+11648153-0000000102c6efd0	add	x4, sp, #0x20
+11648154-0000000102c6efd4	mov	x2, x25
+11648155-0000000102c6efd8	mov	w3, #0x10000000
+11648156-0000000102c6efdc	bl	0x10393c900
+11648157-0000000102c6efe0	ldr	x8, [sp, #0x20]
+11648158-0000000102c6efe4	bl	0x1038c817c ; symbol stub for: _objc_retain_x8
+11648159-0000000102c6efe8	mov	x28, x0
+11648160-0000000102c6efec	bl	0x1038c7ffc ; symbol stub for: _objc_release_x21
+11648161-0000000102c6eff0	bl	0x1038c8044 ; symbol stub for: _objc_release_x27
+11648162-0000000102c6eff4	bl	0x1038c8038 ; symbol stub for: _objc_release_x26
+11648163-0000000102c6eff8	bl	0x1038c8020 ; symbol stub for: _objc_release_x24
+11648164-0000000102c6effc	bl	0x1038c7ff0 ; symbol stub for: _objc_release_x20
+11648165-0000000102c6f000	bl	0x1038c8008 ; symbol stub for: _objc_release_x22
+11648166-0000000102c6f004	ldr	x0, [x19, #0x38]
+11648167-0000000102c6f008	ldr	w8, [sp, #0x14]
+11648168-0000000102c6f00c	cbz	w8, 0x102c6f034
+11648169-0000000102c6f010	ldr	x1, [x19, #0x30]
+11648170-0000000102c6f014	ldr	x8, [x0, #0x10]
+11648171-0000000102c6f018	b	0x102c6f040
+11648172-0000000102c6f01c	ldr	x0, [x19, #0x38]
+11648173-0000000102c6f020	ldr	x8, [x0, #0x10]
+11648174-0000000102c6f024	adrp	x1, 7516 ; 0x1049cb000
+11648175-0000000102c6f028	add	x1, x1, #0x208 ; Objc cfstring ref: @"bad cfstring ref"
+11648176-0000000102c6f02c	blr	x8
+11648177-0000000102c6f030	b	0x102c6f054
+11648178-0000000102c6f034	ldr	x8, [x0, #0x10]
+11648179-0000000102c6f038	adrp	x1, 7516 ; 0x1049cb000
+11648180-0000000102c6f03c	add	x1, x1, #0x208 ; Objc cfstring ref: @"bad cfstring ref"
+11648181-0000000102c6f040	blr	x8
+11648182-0000000102c6f044	bl	0x1038c8050 ; symbol stub for: _objc_release_x28
+11648183-0000000102c6f048	mov	x22, x25
+11648184-0000000102c6f04c	mov	x20, x23
+11648185-0000000102c6f050	ldr	x21, [sp, #0x18]
+11648186-0000000102c6f054	bl	0x1038c8008 ; symbol stub for: _objc_release_x22
+11648187-0000000102c6f058	bl	0x1038c7ff0 ; symbol stub for: _objc_release_x20
+11648188-0000000102c6f05c	bl	0x1038c7ffc ; symbol stub for: _objc_release_x21
+11648189-0000000102c6f060	ldp	x29, x30, [sp, #0xc0]
+11648190-0000000102c6f064	ldp	x20, x19, [sp, #0xb0]
+11648191-0000000102c6f068	ldp	x22, x21, [sp, #0xa0]
+11648192-0000000102c6f06c	ldp	x24, x23, [sp, #0x90]
+11648193-0000000102c6f070	ldp	x26, x25, [sp, #0x80]
+11648194-0000000102c6f074	ldp	x28, x27, [sp, #0x70]
+11648195-0000000102c6f078	add	sp, sp, #0xd0
+11648196-0000000102c6f07c	ret
+11648197-0000000102c6f080	stp	d9, d8, [sp, #-0x30]!
+11648198-0000000102c6f084	stp	x20, x19, [sp, #0x10]
+11648199-0000000102c6f088	stp	x29, x30, [sp, #0x20]
+11648200-0000000102c6f08c	add	x29, sp, #0x20
+11648201-0000000102c6f090	fmov	s8, s0
+11648202-0000000102c6f094	bl	0x1038c80c8 ; symbol stub for: _objc_retain_x2
+11648203-0000000102c6f098	mov	x19, x0
+11648204-0000000102c6f09c	bl	0x103930620
+11648205-0000000102c6f0a0	fcvt	s9, d0
+11648206-0000000102c6f0a4	fdiv	s8, s8, s9
+11648207-0000000102c6f0a8	mov	x0, x19
+11648208-0000000102c6f0ac	bl	0x103930620
+11648209-0000000102c6f0b0	fcvt	d0, s8
+11648210-0000000102c6f0b4	fmul	d0, d1, d0
+11648211-0000000102c6f0b8	fcvt	s0, d0
+11648212-0000000102c6f0bc	fmul	s1, s8, s9
+11648213-0000000102c6f0c0	fcvt	d8, s1
+11648214-0000000102c6f0c4	fcvt	d9, s0
+11648215-0000000102c6f0c8	fmov	d0, d8
+11648216-0000000102c6f0cc	fmov	d1, d9
+11648217-0000000102c6f0d0	bl	0x1038beb28 ; symbol stub for: _UIGraphicsBeginImageContext
+11648218-0000000102c6f0d4	fmov	d0, xzr
+11648219-0000000102c6f0d8	fmov	d1, xzr
+11648220-0000000102c6f0dc	mov	x0, x19
+11648221-0000000102c6f0e0	fmov	d2, d8
+11648222-0000000102c6f0e4	fmov	d3, d9
+11648223-0000000102c6f0e8	bl	0x1038e89c0
+11648224-0000000102c6f0ec	bl	0x1038c7fd8 ; symbol stub for: _objc_release_x19
+11648225-0000000102c6f0f0	bl	0x1038beb58 ; symbol stub for: _UIGraphicsGetImageFromCurrentImageContext
+11648226-0000000102c6f0f4	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11648227-0000000102c6f0f8	mov	x19, x0
+11648228-0000000102c6f0fc	bl	0x1038beb40 ; symbol stub for: _UIGraphicsEndImageContext
+11648229-0000000102c6f100	mov	x0, x19
+11648230-0000000102c6f104	ldp	x29, x30, [sp, #0x20]
+11648231-0000000102c6f108	ldp	x20, x19, [sp, #0x10]
+11648232-0000000102c6f10c	ldp	d9, d8, [sp], #0x30
+11648233-0000000102c6f110	b	0x1038c7e64 ; symbol stub for: _objc_autoreleaseReturnValue
+11648234-0000000102c6f114	sub	sp, sp, #0x50
+11648235-0000000102c6f118	stp	x24, x23, [sp, #0x10]
+11648236-0000000102c6f11c	stp	x22, x21, [sp, #0x20]
+11648237-0000000102c6f120	stp	x20, x19, [sp, #0x30]
+11648238-0000000102c6f124	stp	x29, x30, [sp, #0x40]
+11648239-0000000102c6f128	add	x29, sp, #0x40
+11648240-0000000102c6f12c	mov	x21, x0
+11648241-0000000102c6f130	bl	0x1038fd9c0
+11648242-0000000102c6f134	cmp	x0, #0x1
+11648243-0000000102c6f138	b.eq	0x102c6f14c
+11648244-0000000102c6f13c	mov	x0, x21
+11648245-0000000102c6f140	bl	0x1038fd9c0
+11648246-0000000102c6f144	cmp	x0, #0x3
+11648247-0000000102c6f148	b.ne	0x102c6f16c
+11648248-0000000102c6f14c	adrp	x8, 7851 ; 0x104b1a000
+11648249-0000000102c6f150	ldr	x0, [x8, #0xef8] ; Objc class ref: bad class ref
+--
+11685832-0000000102c93c8c	ldr	x9, [x9]
+11685833-0000000102c93c90	cmp	x9, x8
+11685834-0000000102c93c94	b.ne	0x102c93ca8
+11685835-0000000102c93c98	add	sp, sp, #0x510
+11685836-0000000102c93c9c	ldp	x29, x30, [sp, #0x10]
+11685837-0000000102c93ca0	ldp	x20, x19, [sp], #0x20
+11685838-0000000102c93ca4	b	0x1038c7e64 ; symbol stub for: _objc_autoreleaseReturnValue
+11685839-0000000102c93ca8	bl	0x1038c72f4 ; symbol stub for: ___stack_chk_fail
+11685840-0000000102c93cac	sub	sp, sp, #0x50
+11685841-0000000102c93cb0	stp	x24, x23, [sp, #0x10]
+11685842-0000000102c93cb4	stp	x22, x21, [sp, #0x20]
+11685843-0000000102c93cb8	stp	x20, x19, [sp, #0x30]
+11685844-0000000102c93cbc	stp	x29, x30, [sp, #0x40]
+11685845-0000000102c93cc0	add	x29, sp, #0x40
+11685846-0000000102c93cc4	bl	0x1038c80c8 ; symbol stub for: _objc_retain_x2
+11685847-0000000102c93cc8	mov	x19, x0
+11685848-0000000102c93ccc	bl	0x1038be924 ; symbol stub for: _NSHomeDirectory
+11685849-0000000102c93cd0	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11685850-0000000102c93cd4	mov	x21, x0
+11685851-0000000102c93cd8	adrp	x2, 7478 ; 0x1049c9000
+11685852-0000000102c93cdc	add	x2, x2, #0xea8 ; Objc cfstring ref: @"bad cfstring ref"
+11685853-0000000102c93ce0	bl	0x103932cc0
+11685854-0000000102c93ce4	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11685855-0000000102c93ce8	mov	x22, x0
+11685856-0000000102c93cec	adrp	x8, 7816 ; 0x104b1b000
+11685857-0000000102c93cf0	ldr	x0, [x8, #0xf0] ; Objc class ref: bad class ref
+11685858-0000000102c93cf4	adrp	x3, 7479 ; 0x1049ca000
+11685859-0000000102c93cf8	add	x3, x3, #0x6a8 ; Objc cfstring ref: @"bad cfstring ref"
+11685860-0000000102c93cfc	mov	w2, #0xa
+11685861-0000000102c93d00	bl	0x10390db60
+11685862-0000000102c93d04	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11685863-0000000102c93d08	mov	x23, x0
+11685864-0000000102c93d0c	mov	x0, x22
+11685865-0000000102c93d10	mov	x2, x23
+11685866-0000000102c93d14	bl	0x103932cc0
+11685867-0000000102c93d18	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11685868-0000000102c93d1c	mov	x20, x0
+11685869-0000000102c93d20	bl	0x1038c8014 ; symbol stub for: _objc_release_x23
+11685870-0000000102c93d24	bl	0x1038c8008 ; symbol stub for: _objc_release_x22
+11685871-0000000102c93d28	bl	0x1038c7ffc ; symbol stub for: _objc_release_x21
+11685872-0000000102c93d2c	adrp	x8, 7815 ; 0x104b1a000
+11685873-0000000102c93d30	ldr	x0, [x8, #0xf28] ; Objc class ref: bad class ref
+11685874-0000000102c93d34	bl	0x1038e5d40
+11685875-0000000102c93d38	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11685876-0000000102c93d3c	mov	x21, x0
+11685877-0000000102c93d40	mov	x2, x20
+11685878-0000000102c93d44	bl	0x1038eba60
+11685879-0000000102c93d48	mov	x22, x0
+11685880-0000000102c93d4c	bl	0x1038c7ffc ; symbol stub for: _objc_release_x21
+11685881-0000000102c93d50	cbz	w22, 0x102c93d60
+11685882-0000000102c93d54	bl	0x1038c80d4 ; symbol stub for: _objc_retain_x20
+11685883-0000000102c93d58	mov	x22, x0
+11685884-0000000102c93d5c	b	0x102c93dc0
+11685885-0000000102c93d60	adrp	x8, 7815 ; 0x104b1a000
+11685886-0000000102c93d64	ldr	x0, [x8, #0xee8] ; Objc class ref: bad class ref
+11685887-0000000102c93d68	fmov	d0, #3.00000000
+11685888-0000000102c93d6c	mov	x2, x19
+11685889-0000000102c93d70	bl	0x1038f3160
+11685890-0000000102c93d74	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11685891-0000000102c93d78	mov	x22, x0
+11685892:0000000102c93d7c	bl	0x1038beb88 ; symbol stub for: _UIImagePNGRepresentation
+11685893-0000000102c93d80	bl	0x1038c7e7c ; symbol stub for: _objc_claimAutoreleasedReturnValue
+11685894-0000000102c93d84	mov	x21, x0
+11685895-0000000102c93d88	bl	0x1038c8008 ; symbol stub for: _objc_release_x22
+11685896-0000000102c93d8c	str	xzr, [sp, #0x8]
+11685897-0000000102c93d90	add	x4, sp, #0x8
+11685898-0000000102c93d94	mov	x0, x21
+11685899-0000000102c93d98	mov	x2, x20
+11685900-0000000102c93d9c	mov	w3, #0x10000000
+11685901-0000000102c93da0	bl	0x10393c900
+11685902-0000000102c93da4	cbz	w0, 0x102c93db4
+11685903-0000000102c93da8	bl	0x1038c80d4 ; symbol stub for: _objc_retain_x20
+11685904-0000000102c93dac	mov	x22, x0
+11685905-0000000102c93db0	b	0x102c93dbc
+11685906-0000000102c93db4	adrp	x22, 7461 ; 0x1049b8000
+11685907-0000000102c93db8	add	x22, x22, #0xe68 ; Objc cfstring ref: @"bad cfstring ref"
+11685908-0000000102c93dbc	bl	0x1038c7ffc ; symbol stub for: _objc_release_x21
+11685909-0000000102c93dc0	bl	0x1038c7ff0 ; symbol stub for: _objc_release_x20
+11685910-0000000102c93dc4	bl	0x1038c7fd8 ; symbol stub for: _objc_release_x19
+11685911-0000000102c93dc8	mov	x0, x22
+11685912-0000000102c93dcc	ldp	x29, x30, [sp, #0x40]
+11685913-0000000102c93dd0	ldp	x20, x19, [sp, #0x30]
+11685914-0000000102c93dd4	ldp	x22, x21, [sp, #0x20]
+11685915-0000000102c93dd8	ldp	x24, x23, [sp, #0x10]
+11685916-0000000102c93ddc	add	sp, sp, #0x50
+11685917-0000000102c93de0	b	0x1038c7e64 ; symbol stub for: _objc_autoreleaseReturnValue
+11685918-0000000102c93de4	sub	sp, sp, #0x70
+
+=== STRINGS ===
+113091:3a60807 @"UIImage"24@?0{CGSize=dd}8
+113911:3a678b0 UIImagePickerControllerDelegate
+113912:3a678d0 v40@0:8@"UIImagePickerController"16@"UIImage"24@"NSDictionary"32
+113913:3a67920 v32@0:8@"UIImagePickerController"16@"NSDictionary"24
+113914:3a67960 v24@0:8@"UIImagePickerController"16
+113938:3a67d30 T@"UIImageView",N,W,VbgImageView
+114263:3a6aa10 _TtCFFFC10Kingfisher17KingfisherManager13retrieveImageFzZT4withOS_6Source7optionsVS_27KingfisherParsedOptionsInfo22progressiveImageSetterGSqFGSqCSo7UIImage_T__30referenceTaskIdentifierCheckerGSqFT_Sb__VS_19RetrieveImageResultU_FzZT_S4_U_FGVs19CheckedContinuationS4_Ps5Error__T_L_17ContinuationState
+114418:3a6c131 T@"UIImage",N,&
+114544:3a6cb60 v24@?0@"UIImage"8@"NSURL"16
+114573:3a6d000 v32@0:8@"NSURL"16@?<v@?@"UIImage"@"NSURL">24
+115537:3a745a1 v16@?0@"UIImage"8
+115649:3a753a1 v20@?0B8@"UIImage"12
+116539:3a7ab0f v32@?0@"UIImageView"8Q16^B24
+121147:3aa0760 v24@?0@"UIImage"8@"NSError"16
+124125:3ab4601 v40@?0@"UIImage"8@"NSData"16q24@"NSError"32
+124410:3ab59d9 v24@?0@"UIImage"8@"UIView"16
+125453:3aba914 Dropping frame %zu because valid `CGImageRef` %@ did result in `nil`-`UIImage`.
+125479:3abae64 v32@?0@"UIImage"8@"NSError"16@"NSURL"24
+172154:4548008 NUIImagePickerControllerInfoKey
+172282:454de8e NUIImageRenderingMode
+172325:454ee48 UIImage
+172370:454f7c0 UIImage
+172371:454f7d8 UIImageView
+172432:4550878 UIImage
+175082:45a1cf1 T@"UIImageView",&,N,V_cellImage
+175084:45a1d22 T@"UIImageView",&,N,V_imageView
+175086:45a1d4f T@"UIImageView",W,N,V_itemImage
+177736:45b2426 T@"UIImage",R,N
+177738:45b2445 T@"UIImageView",&,N,V_gaosiView
+177740:45b2476 T@"UIImageView",W,N,V_imageView
+177742:45b24ad T@"UIImageView",W,N,V_leftThumb
+181168:45ca6f9 T@"UIImage",&,N,V_backgroundImage
+181169:45ca71b T@"UIImage",&,N,V_iconImage
+181170:45ca737 T@"UIImage",&,N,V_image
+181171:45ca74f T@"UIImage",&,N,V_placeholderImage
+181172:45ca772 T@"UIImage",&,V_croppedImage
+181173:45ca78f T@"UIImage",R,N,V_posterImage
+181174:45ca7ad T@"UIImage<PAGUgenV3AnimatedImage>",&,N,V_curImage
+181175:45ca7e0 T@"UIImagePickerController",&,N,V_imagePicker
+181176:45ca80e T@"UIImageView",&,N,V_NewSong
+181177:45ca82c T@"UIImageView",&,N,V_PAGVar_FtApi
+181178:45ca84f T@"UIImageView",&,N,V_PAGWiki_CanMark
+181179:45ca875 T@"UIImageView",&,N,V_adChoicesView
+181180:45ca899 T@"UIImageView",&,N,V_backgroundImageView
+181181:45ca8c3 T@"UIImageView",&,N,V_blurredImageView
+181182:45ca8ea T@"UIImageView",&,N,V_bottomImageView
+181183:45ca910 T@"UIImageView",&,N,V_cellImageType
+181184:45ca934 T@"UIImageView",&,N,V_currentSongImageView
+181185:45ca95f T@"UIImageView",&,N,V_customImageView
+181186:45ca985 T@"UIImageView",&,N,V_fastImageView
+181187:45ca9a9 T@"UIImageView",&,N,V_finishBackgroundView
+181188:45ca9d4 T@"UIImageView",&,N,V_iconImageView
+181189:45ca9f8 T@"UIImageView",&,N,V_logoADImageView
+181190:45caa1e T@"UIImageView",&,N,V_logoImageView
+181191:45caa42 T@"UIImageView",&,N,V_placeholderImageView
+181192:45caa6d T@"UIImageView",&,N,V_removeAdsImage
+181193:45caa92 T@"UIImageView",&,N,V_selectImage
+181194:45caab4 T@"UIImageView",&,N,V_sliderImage
+181195:45caad6 T@"UIImageView",&,N,V_songImageView
+181196:45caafa T@"UIImageView",&,N,V_topImageView
+181197:45cab1d T@"UIImageView",&,N,V_volumeImage
+181198:45cab3f T@"UIImageView",W,N,V_appImageView
+181199:45cab62 T@"UIImageView",W,N,V_backgroundImageView
+181200:45cab8c T@"UIImageView",W,N,V_bgImageView
+181201:45cabae T@"UIImageView",W,N,V_gameplayIconView
+181202:45cabd5 T@"UIImageView",W,N,V_iconImageView
+181203:45cabf9 T@"UIImageView",W,N,V_iconView
+181204:45cac18 T@"UIImageView",W,N,V_itemImageView
+181205:45cac3c T@"UIImageView",W,N,V_optionImageView
+181206:45cac62 T@"UIImageView",W,N,V_rightThumb
+181207:45cac83 T@"UIImageView",W,N,V_splashImageView
+181208:45caca9 T@"UIImageView",W,N,V_trashImageView
+181209:45cacce T@"UIImageView",W,N,V_tutImageView1
+181210:45cacf2 T@"UIImageView",W,N,V_tutImageView2
+181211:45cad16 T@"UIImageView",W,V_brandImage
+194258:4612cde imageNamed:
+194259:4612cea imageNamed:inBundle:compatibleWithTraitCollection:
+198040:462c59a pag_compatImageNamed:
+205805:4656c3c systemImageNamed:
+205806:4656c4e systemImageNamed:withConfiguration:
+209761:466d666 @"UIImageView"
+209950:466ea6a @"UIImage"
+209995:466f053 v24@0:8@"UIImage"16
+210385:4672a2b @"UIImagePickerController"
+211103:467ad8e v32@0:8@"NSURL"16@?<v@?@"UIImage"@"NSURL">24
+212201:468372b @"UIImage"32@0:8@"NSData"16^@24
+212279:4684064 @"UIImage"24@0:8@"NSString"16
+212280:4684082 v32@0:8@"UIImage"16@"NSString"24
+212541:4685fc8 @"UIImage<PAGUgenV3AnimatedImage>"
+212543:4686015 @"UIImage"24@0:8Q16
+212547:468606e v32@0:8@"PAGUgenV3ImageView"16@"UIImage"24
+215721:46a2fe0 So7UIImageCSg
+215735:46a31a5 ySo7UIImageCSgG
+216065:46a51c0 So7UIImageCSgG
+216066:46a51e3 So7UIImageCSgGG
+216067:46a520e So7UIImageCSgGGSo17OS_dispatch_queueCG
+216081:46a537c So11UIImageViewCSgXw
+217572:46af26f ySo7UIImageC
+217618:46af85d y_So7UIImageCG
+217621:46af898 So7UIImageC

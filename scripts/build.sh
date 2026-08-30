@@ -18,8 +18,8 @@ cat > "$FW/Info.plist" <<'EOF'
 <key>CFBundleIdentifier</key><string>com.alsaray.tarab.portraitoverlay</string>
 <key>CFBundleName</key><string>PortraitOverlay</string>
 <key>CFBundlePackageType</key><string>FMWK</string>
-<key>CFBundleShortVersionString</key><string>1.1</string>
-<key>CFBundleVersion</key><string>2</string>
+<key>CFBundleShortVersionString</key><string>1.2</string>
+<key>CFBundleVersion</key><string>3</string>
 <key>MinimumOSVersion</key><string>15.0</string>
 </dict></plist>
 EOF

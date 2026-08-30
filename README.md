@@ -1,6 +1,4 @@
-FAST version. Uses one radare2 process and one lightweight analysis pass instead of repeatedly running full `aaa`.
+No radare2 and no Homebrew. This version parses the Mach-O and ARM64 instructions directly with Python, so there is no full binary analysis pass.
 
-Upload these to the repo root, commit, refresh Codemagic, and run:
-FAST Trace Mohammed Alsaray Row
-
-Then send the xref_results artifact.
+Run workflow: DIRECT ARM64 Trace
+Then send xref_results.

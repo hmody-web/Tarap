@@ -1,12 +1,12 @@
 workflows:
-  trace-selector-xrefs:
-    name: Trace UIKit Selector Xrefs
+  build-portrait-dylib:
+    name: Build Tarab Portrait Dylib
     instance_type: mac_mini_m2
     max_build_duration: 10
     scripts:
-      - name: Resolve UIKit selector xrefs
+      - name: Build PortraitOverlay framework
         script: |
-          chmod +x scripts/trace_selector_xrefs.sh
-          ./scripts/trace_selector_xrefs.sh
+          chmod +x scripts/build.sh
+          ./scripts/build.sh
     artifacts:
-      - selector_xref_trace/**
+      - build/PortraitOverlay.framework/**

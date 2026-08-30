@@ -1,6 +1,4 @@
-Uses only native Xcode/macOS tools: nm, otool and swift-demangle. No Homebrew and no radare2.
+Targets the More/settings row icon path, including UIKit UIImage/SF Symbol APIs, rather than the unrelated SwiftUI Premium crowns.
 
-Upload the contents, commit, refresh Codemagic and run:
-Xcode Symbol Trace
-
-Then send the symbol_results artifact.
+Run: Trace More Row Icon
+Then send the complete more_icon_results artifact.

@@ -1,12 +1,12 @@
 workflows:
-  xcode-symbol-trace:
-    name: Xcode Symbol Trace
+  trace-more-row-icon:
+    name: Trace More Row Icon
     instance_type: mac_mini_m2
     max_build_duration: 10
     scripts:
-      - name: Trace Swift symbols with Xcode tools
+      - name: Trace UIKit More icon
         script: |
-          chmod +x scripts/trace_symbols.sh
-          ./scripts/trace_symbols.sh
+          chmod +x scripts/trace_more_icon.sh
+          ./scripts/trace_more_icon.sh
     artifacts:
-      - symbol_results/**
+      - more_icon_results/**

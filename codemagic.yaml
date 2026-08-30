@@ -1,12 +1,12 @@
 workflows:
-  direct-arm64-trace:
-    name: DIRECT ARM64 Trace
+  xcode-symbol-trace:
+    name: Xcode Symbol Trace
     instance_type: mac_mini_m2
     max_build_duration: 10
     scripts:
-      - name: Direct binary trace
+      - name: Trace Swift symbols with Xcode tools
         script: |
-          chmod +x scripts/run_direct_trace.sh
-          ./scripts/run_direct_trace.sh
+          chmod +x scripts/trace_symbols.sh
+          ./scripts/trace_symbols.sh
     artifacts:
-      - xref_results/**
+      - symbol_results/**

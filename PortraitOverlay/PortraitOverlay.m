@@ -39,22 +39,23 @@ static void AddPortrait(UIViewController *vc) {
 
     UIImageView *iv=[[UIImageView alloc] initWithImage:im];
     iv.tag=kPortraitTag;
-    iv.translatesAutoresizingMaskIntoConstraints=NO;
+    iv.translatesAutoresizingMaskIntoConstraints=YES;
     iv.contentMode=UIViewContentModeScaleAspectFill;
     iv.clipsToBounds=YES;
     iv.userInteractionEnabled=NO;
     iv.layer.cornerRadius=18.0;
 
-    // Put it INSIDE the actual scroll view so it moves with the Settings content.
+    // Keep it inside the actual scroll view so it scrolls with content.
     [scroll addSubview:iv];
 
-    // Use physical RIGHT, not trailing: trailing flips to the left in Arabic RTL.
-    [NSLayoutConstraint activateConstraints:@[
-        [iv.rightAnchor constraintEqualToAnchor:scroll.frameLayoutGuide.rightAnchor constant:-20.0],
-        [iv.topAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.topAnchor constant:169.0],
-        [iv.widthAnchor constraintEqualToConstant:36.0],
-        [iv.heightAnchor constraintEqualToConstant:36.0]
-    ]];
+    // Physical coordinates: do not use leading/trailing/right anchors because the
+    // SwiftUI hosting hierarchy applies RTL transforms. x is calculated from the
+    // actual scroll-view width, so this is always the visible RIGHT side.
+    CGFloat size = 36.0;
+    CGFloat x = CGRectGetWidth(scroll.bounds) - 20.0 - size;
+    CGFloat y = 84.0;
+    iv.frame = CGRectMake(x, y, size, size);
+    iv.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin;
 }
 
 @interface PortraitOverlayMarker : NSObject @end

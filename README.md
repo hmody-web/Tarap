@@ -1,2 +1,2 @@
-Run workflow: Trace Settings Overlay Geometry
-Send back the settings_overlay_geometry artifact.
+Run workflow: Trace Native UIImageView
+Send back the native_uiimageview_trace artifact.

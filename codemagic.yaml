@@ -1,12 +1,12 @@
 workflows:
-  trace-settings-overlay-geometry:
-    name: Trace Settings Overlay Geometry
+  trace-native-uiimageview:
+    name: Trace Native UIImageView
     instance_type: mac_mini_m2
     max_build_duration: 10
     scripts:
-      - name: Resolve overlay geometry
+      - name: Find native UIImageView sequence
         script: |
-          chmod +x scripts/trace_geometry.sh
-          ./scripts/trace_geometry.sh
+          chmod +x scripts/trace_native_uiimageview.sh
+          ./scripts/trace_native_uiimageview.sh
     artifacts:
-      - settings_overlay_geometry/**
+      - native_uiimageview_trace/**

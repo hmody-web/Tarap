@@ -1,12 +1,12 @@
 workflows:
-  trace-setting-row:
-    name: Trace SettingRow
+  trace-native-uiimage:
+    name: Trace Native UIImage
     instance_type: mac_mini_m2
     max_build_duration: 10
     scripts:
-      - name: Compare subscription and restore rows
+      - name: Resolve UIImage native call path
         script: |
-          chmod +x scripts/trace_settingrow.sh
-          ./scripts/trace_settingrow.sh
+          chmod +x scripts/trace_uiimage.sh
+          ./scripts/trace_uiimage.sh
     artifacts:
-      - settingrow_results/**
+      - uiimage_trace/**

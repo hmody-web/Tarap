@@ -1,12 +1,12 @@
 workflows:
-  trace-image-component-caller:
-    name: Trace Image Component Caller
+  trace-settingrow-constructor:
+    name: Trace SettingRow Constructor
     instance_type: mac_mini_m2
     max_build_duration: 10
     scripts:
-      - name: Resolve reusable component caller
+      - name: Resolve SettingRow constructor
         script: |
-          chmod +x scripts/trace_caller.sh
-          ./scripts/trace_caller.sh
+          chmod +x scripts/trace_settingrow_constructor.sh
+          ./scripts/trace_settingrow_constructor.sh
     artifacts:
-      - caller_trace/**
+      - settingrow_constructor/**

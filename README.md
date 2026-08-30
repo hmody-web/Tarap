@@ -1,1 +1,1 @@
-Run workflow: Trace Native UIImage. Send uiimage_trace artifact.
+Run workflow: Trace Existing Image Component. Send the component_trace artifact.

@@ -500,42 +500,6 @@ static const CGFloat TRBGap = 0.0;
 @end
 
 
-static void TRBForceFrontmost(UIViewController *vc, TRBBannerCarousel *carousel) {
-    if (!carousel || !carousel.superview) return;
-
-    carousel.layer.zPosition = 9999999.0;
-
-    UIView *superview = carousel.superview;
-    [superview bringSubviewToFront:carousel];
-
-    // Reassert on the main thread after the host hierarchy finishes its own layout.
-    dispatch_async(dispatch_get_main_queue(), ^{
-        carousel.layer.zPosition = 9999999.0;
-        if (carousel.superview) {
-            [carousel.superview bringSubviewToFront:carousel];
-        }
-
-        // Also move the scroll container forward inside its direct parent when safe.
-        // This avoids SwiftUI sibling overlays visually covering our injected banner.
-        UIView *scrollHost = carousel.superview;
-        if (scrollHost.superview) {
-            [scrollHost.superview bringSubviewToFront:scrollHost];
-        }
-
-        // Finally, keep the whole branch visible above normal sibling content.
-        UIView *branch = scrollHost;
-        NSUInteger hops = 0;
-        while (branch.superview && branch.superview != vc.view && hops < 4) {
-            branch.layer.zPosition = MAX(branch.layer.zPosition, 999999.0);
-            [branch.superview bringSubviewToFront:branch];
-            branch = branch.superview;
-            hops++;
-        }
-
-        carousel.layer.zPosition = 9999999.0;
-    });
-}
-
 #pragma mark - Installation / page targeting
 
 static char kTRBCarouselKey;
@@ -628,41 +592,37 @@ static void TRBInstallBannerIntoController(UIViewController *vc) {
 
     TRBBannerCarousel *existing = objc_getAssociatedObject(vc, &kTRBCarouselKey);
     if (existing && existing.superview) {
+        existing.layer.zPosition = 9999999.0;
+        [vc.view bringSubviewToFront:existing];
         [existing loadRemoteData];
         return;
     }
 
-    UIScrollView *scroll = TRBFindMainScrollView(vc.view);
-    if (!scroll) return;
-
-    // Overlay only: do NOT change contentInset/contentSize.
-    // Place directly over the original top banner region.
-    CGFloat width = 358.0;
-    CGFloat x = (scroll.bounds.size.width - width) / 2.0;
-
-    UIEdgeInsets adjusted = UIEdgeInsetsZero;
-    if (@available(iOS 11.0, *)) {
-        adjusted = scroll.adjustedContentInset;
-    } else {
-        adjusted = scroll.contentInset;
-    }
-
-    // Top visible content coordinate. This intentionally overlays the native banner.
-    CGFloat y = -157.0;
+    // Independent overlay. It does not belong to any list or scroll view.
+    const CGFloat x = 16.0;
+    const CGFloat y = -157.0;
+    const CGFloat width = 358.0;
+    const CGFloat height = 160.0;
 
     TRBBannerCarousel *carousel = [[TRBBannerCarousel alloc]
-        initWithFrame:CGRectMake(x, y, width, 160.0)];
+        initWithFrame:CGRectMake(x, y, width, height)];
     carousel.autoresizingMask = UIViewAutoresizingNone;
     carousel.hidden = YES;
     carousel.tag = 0x54524231;
     carousel.layer.zPosition = 9999999.0;
 
-    [scroll addSubview:carousel];
-    [scroll bringSubviewToFront:carousel];
-    TRBForceFrontmost(vc, carousel);
+    [vc.view addSubview:carousel];
+    [vc.view bringSubviewToFront:carousel];
 
     objc_setAssociatedObject(vc, &kTRBCarouselKey, carousel, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    objc_setAssociatedObject(vc.view, &kTRBTargetScrollKey, scroll, OBJC_ASSOCIATION_ASSIGN);
+    objc_setAssociatedObject(vc.view, &kTRBTargetScrollKey, nil, OBJC_ASSOCIATION_ASSIGN);
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        carousel.layer.zPosition = 9999999.0;
+        if (carousel.superview == vc.view) {
+            [vc.view bringSubviewToFront:carousel];
+        }
+    });
 
     [carousel loadRemoteData];
 }
@@ -676,45 +636,35 @@ static void TRBPatchedViewDidAppear(UIViewController *self, SEL _cmd, BOOL anima
 }
 
 static void TRBPatchedViewDidLayout(UIViewController *self, SEL _cmd) {
-    ((void (*)(id, SEL))TRBOriginalViewDidLayout)(self, _cmd);
+    if (TRBOriginalViewDidLayout) {
+        TRBOriginalViewDidLayout(self, _cmd);
+    }
+
+    if (!TRBIsSourcesPage(self)) return;
 
     TRBBannerCarousel *carousel = objc_getAssociatedObject(self, &kTRBCarouselKey);
     if (carousel && carousel.superview) {
-        UIScrollView *scroll = (UIScrollView *)carousel.superview;
-        CGFloat width = 358.0;
-        CGFloat x = (scroll.bounds.size.width - width) / 2.0;
-        CGRect f = carousel.frame;
-        f.origin.x = x;
-        f.origin.y = -157.0;
-        f.size.width = 358.0;
-        f.size.height = 160.0;
-        carousel.frame = f;
+        // FREE coordinates: edit these four constants only.
+        const CGFloat TRBFreeX = 16.0;
+        const CGFloat TRBFreeY = -157.0;
+        const CGFloat TRBFreeWidth = 358.0;
+        const CGFloat TRBFreeHeight = 160.0;
+
+        carousel.frame = CGRectMake(TRBFreeX, TRBFreeY, TRBFreeWidth, TRBFreeHeight);
         carousel.layer.zPosition = 9999999.0;
-        [scroll bringSubviewToFront:carousel];
-        TRBForceFrontmost(self, carousel);
-    } else {
+        if (carousel.superview == self.view) {
+            [self.view bringSubviewToFront:carousel];
+        }
+
         dispatch_async(dispatch_get_main_queue(), ^{
-            TRBInstallBannerIntoController(self);
+            carousel.layer.zPosition = 9999999.0;
+            if (carousel.superview == self.view) {
+                [self.view bringSubviewToFront:carousel];
+            }
         });
+    } else {
+        TRBInstallBannerIntoController(self);
     }
-}
-
-static void TRBInstallHooks(void) {
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        Class cls = UIViewController.class;
-
-        Method appear = class_getInstanceMethod(cls, @selector(viewDidAppear:));
-        Method layout = class_getInstanceMethod(cls, @selector(viewDidLayoutSubviews));
-
-        TRBOriginalViewDidAppear = method_getImplementation(appear);
-        TRBOriginalViewDidLayout = method_getImplementation(layout);
-
-        method_setImplementation(appear, (IMP)TRBPatchedViewDidAppear);
-        method_setImplementation(layout, (IMP)TRBPatchedViewDidLayout);
-
-        NSLog(@"[TarabRemoteBanner] hooks installed");
-    });
 }
 
 __attribute__((constructor))

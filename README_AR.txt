@@ -55,3 +55,11 @@ Tarab_RemoteBanner_Injected.ipa
 - إعادة bringSubviewToFront بعد كل layout.
 - رفع فرع الـUIScrollView داخل hierarchy حتى لا تغطيه SwiftUI sibling overlays.
 - الحفاظ على باقي تعديلات v3 كاملة.
+
+تعديل v5 FREE OVERLAY:
+- البنر مستقل كلياً عن UITableView/UICollectionView/UIScrollView.
+- TRBBannerCarousel يضاف مباشرة إلى root view لصفحة المصادر.
+- لا contentInset ولا contentOffset ولا تحريك للقائمة.
+- الإحداثيات الحالية الحرة: X=16, Y=-157, W=358, H=160.
+- لتغيير المكان لاحقاً عدّل TRBFreeX وTRBFreeY فقط.
+- يبقى فوق محتوى الصفحة عبر zPosition وbringSubviewToFront.

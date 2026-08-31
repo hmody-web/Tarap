@@ -93,9 +93,15 @@ static void extendSelectedPageUnderTabBar(UITabBarController *tc) {
         inset.bottom = 0;
         scroll.contentInset = inset;
 
-        UIEdgeInsets indicator = scroll.scrollIndicatorInsets;
-        indicator.bottom = 0;
-        scroll.scrollIndicatorInsets = indicator;
+        if (@available(iOS 13.0, *)) {
+            UIEdgeInsets vIndicator = scroll.verticalScrollIndicatorInsets;
+            vIndicator.bottom = 0;
+            scroll.verticalScrollIndicatorInsets = vIndicator;
+
+            UIEdgeInsets hIndicator = scroll.horizontalScrollIndicatorInsets;
+            hIndicator.bottom = 0;
+            scroll.horizontalScrollIndicatorInsets = hIndicator;
+        }
     }
 
     /*
@@ -115,9 +121,9 @@ static void extendSelectedPageUnderTabBar(UITabBarController *tc) {
         CGRect r = [v convertRect:v.bounds toView:w];
 
         BOOL wide = r.size.width >= w.bounds.size.width * 0.90;
-        BOOL lower = CGRectGetMinY(r) >= tabRect.origin.y - 220.0;
-        BOOL reachesBottom = CGRectGetMaxY(r) >=
-                             CGRectGetMaxY(w.bounds) - 8.0;
+        BOOL lower = r.origin.y >= tabRect.origin.y - 220.0;
+        BOOL reachesBottom = (r.origin.y + r.size.height) >=
+                             (w.bounds.origin.y + w.bounds.size.height) - 8.0;
         BOOL mostlyEmpty = v.subviews.count == 0;
 
         if (wide && lower && reachesBottom && mostlyEmpty) {

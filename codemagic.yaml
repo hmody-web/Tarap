@@ -1,6 +1,6 @@
 workflows:
   layout-cleaner-v3:
-    name: Build LayoutCleaner SAFE V3
+    name: Build LayoutCleaner SAFE V3.1
     instance_type: mac_mini_m2
     max_build_duration: 30
     scripts:
@@ -9,4 +9,4 @@ workflows:
           chmod +x build_and_merge.sh inject_dylib.py
           ./build_and_merge.sh
     artifacts:
-      - "Tarab_5.11_LayoutCleaner_SAFE_V3.ipa"
+      - "Tarab_5.11_LayoutCleaner_SAFE_V3_1.ipa"

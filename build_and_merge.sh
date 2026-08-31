@@ -2,7 +2,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
-OUT="Tarab_5.11_LayoutCleaner_SAFE_V3.ipa"
+OUT="Tarab_5.11_LayoutCleaner_SAFE_V3_1.ipa"
 
 INPUT="$(find "$ROOT" -maxdepth 3 -type f -name '*.ipa' \
  ! -name "$OUT" ! -name '*LayoutCleaner_SAFE_V2*' ! -name '*LayoutCleaner.ipa' \
@@ -39,8 +39,8 @@ cat > "$FW/Info.plist" <<'EOF'
 <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
 <key>CFBundleName</key><string>LayoutCleaner</string>
 <key>CFBundlePackageType</key><string>FMWK</string>
-<key>CFBundleShortVersionString</key><string>3.0</string>
-<key>CFBundleVersion</key><string>3</string>
+<key>CFBundleShortVersionString</key><string>3.1</string>
+<key>CFBundleVersion</key><string>31</string>
 <key>MinimumOSVersion</key><string>15.0</string>
 </dict></plist>
 EOF

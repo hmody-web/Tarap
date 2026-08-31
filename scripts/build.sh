@@ -1,16 +1,17 @@
 #!/bin/bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-OUT="$ROOT/build"; FW="$OUT/ProfileOverlay.framework"
-rm -rf "$OUT"; mkdir -p "$FW"
+SRC="$ROOT/ProfileOverlay/ProfileOverlay.m"
+IMG="$ROOT/ProfileOverlay/portrait.jpeg"
+FW="$ROOT/build/ProfileOverlay.framework"
+test -f "$SRC" || { echo "Missing: $SRC"; find "$ROOT" -maxdepth 3 -type f; exit 1; }
+test -f "$IMG" || { echo "Missing: $IMG"; find "$ROOT" -maxdepth 3 -type f; exit 1; }
+rm -rf "$ROOT/build"; mkdir -p "$FW"
 SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
 CLANG="$(xcrun --find clang)"
-"$CLANG" -arch arm64 -isysroot "$SDK" -miphoneos-version-min=15.0 -fobjc-arc -dynamiclib \
- -framework UIKit -framework Foundation -framework QuartzCore \
- -install_name @rpath/ProfileOverlay.framework/ProfileOverlay \
- "$ROOT/ProfileOverlay/ProfileOverlay.m" -o "$FW/ProfileOverlay"
-cp "$ROOT/ProfileOverlay/portrait.jpeg" "$FW/portrait.jpeg"
-cat > "$FW/Info.plist" <<'EOF'
+"$CLANG" -arch arm64 -isysroot "$SDK" -miphoneos-version-min=15.0 -fobjc-arc -dynamiclib -framework UIKit -framework Foundation -framework QuartzCore -install_name @rpath/ProfileOverlay.framework/ProfileOverlay "$SRC" -o "$FW/ProfileOverlay"
+cp "$IMG" "$FW/portrait.jpeg"
+cat > "$FW/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
@@ -22,7 +23,7 @@ cat > "$FW/Info.plist" <<'EOF'
 <key>CFBundleVersion</key><string>1</string>
 <key>MinimumOSVersion</key><string>15.0</string>
 </dict></plist>
-EOF
+PLIST
 codesign --force --sign - --timestamp=none "$FW"
 file "$FW/ProfileOverlay"
 otool -L "$FW/ProfileOverlay"

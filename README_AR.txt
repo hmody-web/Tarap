@@ -1,28 +1,26 @@
-Tarab Ads Source Fix V5
+Tarab DeepFix V6
 
-تم تتبع مصدر مساحة الإعلان من الملف التنفيذي نفسه.
+الهدف:
+1) إبقاء Liquid Glass للـ UITabBar.
+2) جعل محتوى الصفحة الحقيقي يمتد خلف الـ floating tab bar في iOS 26.
+3) تصفير حجز الإعلانات من AdsManager و BannerHeightManager.
+4) تصفير additionalSafeAreaInsets.bottom على الصفحة الفعالة.
+5) معالجة adHeight / webViewBottomConstraint عند وجودهما.
+6) عدم عمل hook عام على UIViewController.
 
-المصدر الحقيقي داخل:
-_TtC5Tarab10AdsManager
+Codemagic:
+- يقبل أي IPA مهما كان اسمه.
+- الأفضل إبقاء IPA واحد فقط في الريبو.
+- الناتج الوحيد كـ Artifact:
+  Tarab_DeepFix_V6.zip
 
-ووجد داخله:
-- bannerBottomConstraint
-- bannerBottomPadding
-- _bannerHeight
-- _inlineBannerHeight
-- bannerView
-- inlineBannerView
-- shouldShowBanner
-- updateBannerPosition
+داخل ZIP:
+- Tarab_DeepFix_V6.ipa
+- V6_Report/app_info.txt
+- V6_Report/macho.txt
+- V6_Report/relevant_strings.txt
+- V6_Report/frameworks.txt
+- V6_Report/post_build.txt
 
-V5 لا يلمس UIViewController أو UITabBarController.
-يستهدف AdsManager فقط ويصفر الحجز بعد updateBannerPosition.
-
-ويبقي شفافية UITabBar بطريقة V2 التي اشتغلت سابقاً.
-
-السكربت يقبل أي IPA مهما كان اسمه.
-الأفضل وضع IPA واحد فقط داخل الريبو.
-
-الناتج:
-Tarab_AdsSourceFix_V5.ipa
-ثم أعد توقيعه.
+وقّع Tarab_DeepFix_V6.ipa بعد استخراجه من ZIP.
+إذا بقيت الخلفية، ارفع ZIP الناتج نفسه حتى نقرأ تقرير V6 ونحدد الطبقة التالية.

@@ -13,6 +13,13 @@ workflows:
           echo "THEOS=$CM_BUILD_DIR/theos" >> $CM_ENV
       - name: Build dylib
         script: |
+          set -e
+          brew install ldid
+          export THEOS="$CM_BUILD_DIR/theos"
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          echo "ldid path:"
+          which ldid
+          ldid -h || true
           cd TarabBannerForce
           make clean package FINALPACKAGE=1
       - name: Install insert_dylib

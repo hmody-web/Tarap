@@ -10,3 +10,6 @@
 - action: https://scrptaty.com/
 
 الحقن يتم بعد بناء dylib. الـ IPA الناتج يحتاج إعادة توقيع صحيحة بشهادتك/Provisioning Profile قبل التثبيت إذا لم تكن خطوة التوقيع موجودة في workflow الخاص بك.
+
+## CodeMagic ldid fix
+The Build dylib step installs `ldid` with Homebrew before Theos builds/signs the tweak. This fixes `bash: ldid: command not found` / exit code 127.

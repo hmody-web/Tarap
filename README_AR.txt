@@ -63,3 +63,9 @@ Tarab_RemoteBanner_Injected.ipa
 - الإحداثيات الحالية الحرة: X=16, Y=-157, W=358, H=160.
 - لتغيير المكان لاحقاً عدّل TRBFreeX وTRBFreeY فقط.
 - يبقى فوق محتوى الصفحة عبر zPosition وbringSubviewToFront.
+
+v5.1 build fix:
+- Fix TRBOriginalViewDidLayout IMP invocation.
+- Restore TRBInstallHooks after free-overlay refactor.
+- No visual/layout/API changes.
+- Keeps X=16, Y=-157, W=358, H=160 and independent root-view overlay.

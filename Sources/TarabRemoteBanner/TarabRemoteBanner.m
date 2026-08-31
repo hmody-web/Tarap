@@ -637,7 +637,7 @@ static void TRBPatchedViewDidAppear(UIViewController *self, SEL _cmd, BOOL anima
 
 static void TRBPatchedViewDidLayout(UIViewController *self, SEL _cmd) {
     if (TRBOriginalViewDidLayout) {
-        TRBOriginalViewDidLayout(self, _cmd);
+        ((void (*)(id, SEL))TRBOriginalViewDidLayout)(self, _cmd);
     }
 
     if (!TRBIsSourcesPage(self)) return;
@@ -665,6 +665,30 @@ static void TRBPatchedViewDidLayout(UIViewController *self, SEL _cmd) {
     } else {
         TRBInstallBannerIntoController(self);
     }
+}
+
+
+static void TRBInstallHooks(void) {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        Class cls = UIViewController.class;
+
+        Method appear = class_getInstanceMethod(cls, @selector(viewDidAppear:));
+        Method layout = class_getInstanceMethod(cls, @selector(viewDidLayoutSubviews));
+
+        if (!appear || !layout) {
+            NSLog(@"[TarabRemoteBanner] required UIViewController methods not found");
+            return;
+        }
+
+        TRBOriginalViewDidAppear = method_getImplementation(appear);
+        TRBOriginalViewDidLayout = method_getImplementation(layout);
+
+        method_setImplementation(appear, (IMP)TRBPatchedViewDidAppear);
+        method_setImplementation(layout, (IMP)TRBPatchedViewDidLayout);
+
+        NSLog(@"[TarabRemoteBanner] hooks installed");
+    });
 }
 
 __attribute__((constructor))

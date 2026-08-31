@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
-OUT_IPA="Tarab_MKTabBarFix_V8.ipa"
-OUT_ZIP="Tarab_MKTabBarFix_V8.zip"
+OUT_IPA="Tarab_RuntimeDiag_V9.ipa"
+OUT_ZIP="Tarab_RuntimeDiag_V9.zip"
 
 echo "==> Searching for ANY IPA"
 
@@ -20,7 +20,7 @@ fi
 
 echo "✅ Input: $INPUT"
 
-WORK="$ROOT/work_v8"
+WORK="$ROOT/work_v9"
 rm -rf "$WORK"
 mkdir -p "$WORK"
 cd "$WORK"
@@ -34,18 +34,11 @@ EXEC_NAME=$(/usr/libexec/PlistBuddy \
  -c 'Print :CFBundleExecutable' "$APP/Info.plist")
 
 EXEC="$APP/$EXEC_NAME"
-FW="$APP/Frameworks/LayoutCleaner.framework"
+
+FW="$APP/Frameworks/RuntimeDiag.framework"
 SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
 
-echo "==> Checking for MKTabBarViewController"
-
-if strings -a "$EXEC" | grep -q 'MKTabBarViewController'; then
-    echo "✅ MKTabBarViewController found in executable"
-else
-    echo "⚠️ MKTabBarViewController string not found"
-fi
-
-echo "==> Building V8"
+echo "==> Building RuntimeDiag V9"
 
 rm -rf "$FW"
 mkdir -p "$FW"
@@ -56,45 +49,39 @@ xcrun clang \
  -miphoneos-version-min=15.0 \
  -fobjc-arc \
  -dynamiclib \
- "$ROOT/LayoutCleaner.m" \
+ "$ROOT/RuntimeDiag.m" \
  -framework Foundation \
  -framework UIKit \
- -install_name '@rpath/LayoutCleaner.framework/LayoutCleaner' \
- -o "$FW/LayoutCleaner"
+ -install_name '@rpath/RuntimeDiag.framework/RuntimeDiag' \
+ -o "$FW/RuntimeDiag"
 
-chmod 755 "$FW/LayoutCleaner"
+chmod 755 "$FW/RuntimeDiag"
 
 cat > "$FW/Info.plist" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-<key>CFBundleExecutable</key><string>LayoutCleaner</string>
-<key>CFBundleIdentifier</key><string>com.alsaray.LayoutCleaner</string>
+<key>CFBundleExecutable</key><string>RuntimeDiag</string>
+<key>CFBundleIdentifier</key><string>com.alsaray.RuntimeDiag</string>
 <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
-<key>CFBundleName</key><string>LayoutCleaner</string>
+<key>CFBundleName</key><string>RuntimeDiag</string>
 <key>CFBundlePackageType</key><string>FMWK</string>
-<key>CFBundleShortVersionString</key><string>8.0</string>
-<key>CFBundleVersion</key><string>80</string>
+<key>CFBundleShortVersionString</key><string>9.0</string>
+<key>CFBundleVersion</key><string>90</string>
 <key>MinimumOSVersion</key><string>15.0</string>
 </dict></plist>
 EOF
 
 if otool -L "$EXEC" | grep -q \
- '@rpath/LayoutCleaner.framework/LayoutCleaner'; then
-    echo "✅ Existing LayoutCleaner load command retained"
+ '@rpath/RuntimeDiag.framework/RuntimeDiag'; then
+    echo "✅ Existing RuntimeDiag load command retained"
 else
-    echo "==> Injecting load command"
-
+    echo "==> Injecting RuntimeDiag"
     python3 "$ROOT/inject_dylib.py" \
       "$EXEC" \
-      '@rpath/LayoutCleaner.framework/LayoutCleaner'
+      '@rpath/RuntimeDiag.framework/RuntimeDiag'
 fi
-
-echo "==> Verification"
-
-otool -L "$EXEC" | grep -E \
- 'LayoutCleaner|ProfileOverlay|PortraitOverlay' || true
 
 rm -rf "$APP/_CodeSignature"
 
@@ -104,7 +91,7 @@ cd "$WORK"
 rm -f "$ROOT/$OUT_IPA"
 zip -qry "$ROOT/$OUT_IPA" Payload
 
-echo "==> Packing ZIP artifact"
+echo "==> Packing ZIP"
 
 cd "$ROOT"
 rm -f "$OUT_ZIP"

@@ -1,28 +1,36 @@
-Tarab MKTabBar Fix V8
+Tarab Runtime Diagnostic V9
 
-هذه النسخة تستهدف الكلاس الحقيقي الموجود داخل Tarab:
-MKTabBarViewController
+هذه النسخة للتشخيص فقط، ولا تعدل تخطيط الشاشة.
 
-ولا تعمل hook عام على UIViewController.
+بعد البناء:
+1. استخرج Tarab_RuntimeDiag_V9.ipa
+2. وقعه وثبته.
+3. افتح التطبيق.
+4. افتح الصفحات التي يظهر بها الفراغ/الخلفية:
+   - الملفات
+   - المزيد
+   - المصادر
+5. انتظر ثانية تقريباً داخل كل صفحة.
+6. الديلب سيكتب تقارير داخل Documents للتطبيق بأسماء:
+   TarabDiag_*.txt
 
-العمل:
-- override لـ viewDidLayoutSubviews فقط داخل MKTabBarViewController.
-- override لـ viewSafeAreaInsetsDidChange فقط داخل MKTabBarViewController.
-- تصفير additionalSafeAreaInsets.
-- تمديد child controllers وcontainers إلى أسفل الشاشة.
-- تمديد أكبر UIScrollView داخل كل tab.
-- عدم تغيير حجم/إخفاء الـtab bar نفسه.
-- إبقاء UITabBar شفاف/زجاجي.
-- تنظيف background/backdrop containers داخل MKTabBar root فقط.
+التقرير يحتوي:
+- اسم الـ UIViewController
+- parent controllers
+- frame/bounds
+- backgroundColor
+- alpha / hidden / opaque
+- safeAreaInsets
+- additionalSafeAreaInsets
+- superview class
+- كل Views التي تقع ضمن آخر 320pt من الشاشة
 
-Codemagic:
-- يقبل أي IPA مهما كان اسمه.
-- الأفضل وجود IPA واحد فقط في الريبو.
-- الناتج:
-  Tarab_MKTabBarFix_V8.zip
+المطلوب بعد التجربة:
+استخرج ملفات TarabDiag_*.txt من Documents ودزها.
+منها نحدد اسم الطبقة المسؤولة بدقة.
 
-داخل ZIP:
-- Tarab_MKTabBarFix_V8.ipa
-- README_AR.txt
+Codemagic يقبل أي IPA مهما كان اسمه.
+الأفضل وجود IPA واحد فقط داخل الريبو.
 
-استخرج IPA ثم أعد توقيعه وجربه.
+الناتج:
+Tarab_RuntimeDiag_V9.zip

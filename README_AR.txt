@@ -50,7 +50,9 @@ V6:
 - UpdateCoalescingCollectionView at 358x257 remains forced to 450.
 - Previous UpdateCoalescingCollectionView 390x701 -> 855 patch is preserved.
 
-V7:
-- Preserves all V6 patches.
-- Files page UITableView matching frame {{0,205},{390,556}} is forced to height 700.
-- Enforcement occurs on every setFrame call so relayout/scroll cannot restore 556.
+V8 FROM USER V6:
+- Built directly from the user-uploaded working V6 project.
+- Preserves all existing 450 and 855 patches.
+- Adds a stronger Files-page UITableView patch for {{0,205},{390,556}} -> height 700.
+- Enforces 700 in UITableView setFrame:, setBounds:, and after every layoutSubviews pass.
+- This is intended to survive scroll/Auto Layout attempts to restore 556.

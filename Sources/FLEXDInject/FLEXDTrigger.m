@@ -133,25 +133,13 @@ static void FLEXDPatchedUIViewSetFrame(UIView *self, SEL _cmd, CGRect frame) {
         frame.size.height = 450.0;
     }
 
-    // Patch B: preserve previous V5/V6 modification.
+    // Patch B: preserve previous V5 modification.
     // UpdateCoalescingCollectionView 390 x ~701 -> 855.
     if (FLEXDClassIsUpdateCoalescing(self) &&
         fabs(frame.size.width - 390.0) < 2.0 &&
         frame.size.height > 680.0 &&
         frame.size.height < 720.0) {
         frame.size.height = 855.0;
-    }
-
-    // Patch C: Files page table discovered in FLEX.
-    // UITableView frame {{0,205},{390,556}} -> force height 700.
-    // Reapplied on every setFrame so UIKit cannot restore 556.
-    if ([self isKindOfClass:UITableView.class] &&
-        fabs(frame.origin.x - 0.0) < 2.0 &&
-        fabs(frame.origin.y - 205.0) < 4.0 &&
-        fabs(frame.size.width - 390.0) < 2.0 &&
-        frame.size.height > 545.0 &&
-        frame.size.height < 570.0) {
-        frame.size.height = 700.0;
     }
 
     ((void (*)(id, SEL, CGRect))FLEXDOriginalUIViewSetFrame)(self, _cmd, frame);
@@ -169,12 +157,111 @@ static void FLEXDInstallHeightPatch(void) {
         FLEXDOriginalUIViewSetFrame = method_getImplementation(method);
         method_setImplementation(method, (IMP)FLEXDPatchedUIViewSetFrame);
 
-        NSLog(@"[FLEXDInject] Tarab patches installed: Sources -> 450, UpdateCoalescing 701 -> 855, Files UITableView 556 -> 700");
+        NSLog(@"[FLEXDInject] Tarab patches installed: all Sources 358x~257 wrappers -> 450, UpdateCoalescing 390x~701 -> 855");
+    });
+}
+
+
+#pragma mark - Robust Files UITableView 700 patch
+
+static IMP FLEXDOriginalTableSetFrame = NULL;
+static IMP FLEXDOriginalTableSetBounds = NULL;
+static IMP FLEXDOriginalTableLayoutSubviews = NULL;
+
+static BOOL FLEXDIsFilesTable(UITableView *table, CGRect frame) {
+    // Runtime target discovered with FLEX:
+    // UITableView {{0,205},{390,556}}
+    // Be intentionally tolerant because UIKit may briefly write intermediate
+    // values while laying out the page.
+    BOOL widthMatch = fabs(frame.size.width - 390.0) < 3.0;
+    BOOL xMatch = fabs(frame.origin.x) < 3.0;
+    BOOL yMatch = frame.origin.y > 195.0 && frame.origin.y < 215.0;
+    BOOL heightMatch =
+        (frame.size.height > 520.0 && frame.size.height < 590.0) ||
+        (frame.size.height > 690.0 && frame.size.height < 710.0);
+
+    return widthMatch && xMatch && yMatch && heightMatch;
+}
+
+static void FLEXDForceFilesTableHeight(UITableView *table) {
+    CGRect frame = table.frame;
+    if (!FLEXDIsFilesTable(table, frame)) return;
+
+    if (fabs(frame.size.height - 700.0) > 0.5) {
+        frame.size.height = 700.0;
+        ((void (*)(id, SEL, CGRect))FLEXDOriginalTableSetFrame)(
+            table, @selector(setFrame:), frame
+        );
+    }
+
+    CGRect bounds = table.bounds;
+    if (fabs(bounds.size.height - 700.0) > 0.5) {
+        bounds.size.height = 700.0;
+        ((void (*)(id, SEL, CGRect))FLEXDOriginalTableSetBounds)(
+            table, @selector(setBounds:), bounds
+        );
+    }
+}
+
+static void FLEXDPatchedTableSetFrame(UITableView *self, SEL _cmd, CGRect frame) {
+    if (FLEXDIsFilesTable(self, frame)) {
+        frame.size.height = 700.0;
+    }
+
+    ((void (*)(id, SEL, CGRect))FLEXDOriginalTableSetFrame)(self, _cmd, frame);
+
+    // Enforce again after UIKit accepts the frame.
+    FLEXDForceFilesTableHeight(self);
+}
+
+static void FLEXDPatchedTableSetBounds(UITableView *self, SEL _cmd, CGRect bounds) {
+    CGRect currentFrame = self.frame;
+
+    if (FLEXDIsFilesTable(self, currentFrame) &&
+        bounds.size.height > 520.0 &&
+        bounds.size.height < 710.0) {
+        bounds.size.height = 700.0;
+    }
+
+    ((void (*)(id, SEL, CGRect))FLEXDOriginalTableSetBounds)(self, _cmd, bounds);
+}
+
+static void FLEXDPatchedTableLayoutSubviews(UITableView *self, SEL _cmd) {
+    ((void (*)(id, SEL))FLEXDOriginalTableLayoutSubviews)(self, _cmd);
+
+    // UIKit/Auto Layout may rewrite the geometry during scrolling/layout.
+    // Force the exact target back to 700 after EVERY layout pass.
+    FLEXDForceFilesTableHeight(self);
+}
+
+static void FLEXDInstallFilesTablePatch(void) {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        Method frameMethod = class_getInstanceMethod(UITableView.class, @selector(setFrame:));
+        Method boundsMethod = class_getInstanceMethod(UITableView.class, @selector(setBounds:));
+        Method layoutMethod = class_getInstanceMethod(UITableView.class, @selector(layoutSubviews));
+
+        if (!frameMethod || !boundsMethod || !layoutMethod) {
+            NSLog(@"[FLEXDInject] Files UITableView patch methods unavailable");
+            return;
+        }
+
+        FLEXDOriginalTableSetFrame = method_getImplementation(frameMethod);
+        FLEXDOriginalTableSetBounds = method_getImplementation(boundsMethod);
+        FLEXDOriginalTableLayoutSubviews = method_getImplementation(layoutMethod);
+
+        method_setImplementation(frameMethod, (IMP)FLEXDPatchedTableSetFrame);
+        method_setImplementation(boundsMethod, (IMP)FLEXDPatchedTableSetBounds);
+        method_setImplementation(layoutMethod, (IMP)FLEXDPatchedTableLayoutSubviews);
+
+        NSLog(@"[FLEXDInject] STRONG Files UITableView patch installed: 556 -> 700");
     });
 }
 
 static void FLEXDInstall(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
+        FLEXDInstallFilesTablePatch();
+
         FLEXDInstallHeightPatch();
 
         FLEXDTrigger *trigger = [FLEXDTrigger shared];

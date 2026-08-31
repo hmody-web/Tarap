@@ -145,6 +145,146 @@ static void FLEXDPatchedUIViewSetFrame(UIView *self, SEL _cmd, CGRect frame) {
     ((void (*)(id, SEL, CGRect))FLEXDOriginalUIViewSetFrame)(self, _cmd, frame);
 }
 
+
+#pragma mark - Direct SwiftUI class hooks (V7)
+
+static IMP FLEXDOriginalInheritedSetFrame = NULL;
+static IMP FLEXDOriginalInheritedSetBounds = NULL;
+static IMP FLEXDOriginalUpdateSetFrame = NULL;
+static IMP FLEXDOriginalUpdateSetBounds = NULL;
+
+static BOOL FLEXDInheritedHooksInstalled = NO;
+static BOOL FLEXDUpdateHooksInstalled = NO;
+
+static BOOL FLEXDIs358x257(CGRect rect) {
+    return fabs(rect.size.width - 358.0) < 2.0 &&
+           rect.size.height > 245.0 &&
+           rect.size.height < 275.0;
+}
+
+static BOOL FLEXDIs390x701(CGRect rect) {
+    return fabs(rect.size.width - 390.0) < 2.0 &&
+           rect.size.height > 680.0 &&
+           rect.size.height < 720.0;
+}
+
+static void FLEXDInheritedSetFrame(id self, SEL _cmd, CGRect frame) {
+    if (FLEXDIs358x257(frame)) {
+        frame.size.height = 450.0;
+    }
+
+    if (FLEXDOriginalInheritedSetFrame) {
+        ((void (*)(id, SEL, CGRect))FLEXDOriginalInheritedSetFrame)(self, _cmd, frame);
+    }
+}
+
+static void FLEXDInheritedSetBounds(id self, SEL _cmd, CGRect bounds) {
+    if (FLEXDIs358x257(bounds)) {
+        bounds.size.height = 450.0;
+    }
+
+    if (FLEXDOriginalInheritedSetBounds) {
+        ((void (*)(id, SEL, CGRect))FLEXDOriginalInheritedSetBounds)(self, _cmd, bounds);
+    }
+}
+
+static void FLEXDUpdateSetFrame(id self, SEL _cmd, CGRect frame) {
+    if (FLEXDIs358x257(frame)) {
+        frame.size.height = 450.0;
+    } else if (FLEXDIs390x701(frame)) {
+        frame.size.height = 855.0;
+    }
+
+    if (FLEXDOriginalUpdateSetFrame) {
+        ((void (*)(id, SEL, CGRect))FLEXDOriginalUpdateSetFrame)(self, _cmd, frame);
+    }
+}
+
+static void FLEXDUpdateSetBounds(id self, SEL _cmd, CGRect bounds) {
+    if (FLEXDIs358x257(bounds)) {
+        bounds.size.height = 450.0;
+    } else if (FLEXDIs390x701(bounds)) {
+        bounds.size.height = 855.0;
+    }
+
+    if (FLEXDOriginalUpdateSetBounds) {
+        ((void (*)(id, SEL, CGRect))FLEXDOriginalUpdateSetBounds)(self, _cmd, bounds);
+    }
+}
+
+static BOOL FLEXDInstallMethodHook(Class cls, SEL selector, IMP replacement, IMP *originalOut) {
+    Method method = class_getInstanceMethod(cls, selector);
+    if (!method) return NO;
+
+    IMP original = class_getMethodImplementation(cls, selector);
+    const char *types = method_getTypeEncoding(method);
+
+    // If this class inherits the method, add an override only to this class.
+    if (class_addMethod(cls, selector, replacement, types)) {
+        *originalOut = original;
+        return YES;
+    }
+
+    // If it already owns the method, replace only that class implementation.
+    Method ownedMethod = class_getInstanceMethod(cls, selector);
+    if (!ownedMethod) return NO;
+
+    *originalOut = method_getImplementation(ownedMethod);
+    method_setImplementation(ownedMethod, replacement);
+    return YES;
+}
+
+static void FLEXDInstallDirectSwiftUIHooks(void) {
+    if (!FLEXDInheritedHooksInstalled) {
+        Class inheritedClass = NSClassFromString(@"SwiftUI._UIInheritedView");
+        if (inheritedClass) {
+            BOOL frameOK = FLEXDInstallMethodHook(
+                inheritedClass,
+                @selector(setFrame:),
+                (IMP)FLEXDInheritedSetFrame,
+                &FLEXDOriginalInheritedSetFrame
+            );
+
+            BOOL boundsOK = FLEXDInstallMethodHook(
+                inheritedClass,
+                @selector(setBounds:),
+                (IMP)FLEXDInheritedSetBounds,
+                &FLEXDOriginalInheritedSetBounds
+            );
+
+            if (frameOK && boundsOK) {
+                FLEXDInheritedHooksInstalled = YES;
+                NSLog(@"[FLEXDInject] DIRECT SwiftUI._UIInheritedView hook installed: 358x257 -> 450");
+            }
+        }
+    }
+
+    if (!FLEXDUpdateHooksInstalled) {
+        Class updateClass = NSClassFromString(@"SwiftUI.UpdateCoalescingCollectionView");
+        if (updateClass) {
+            BOOL frameOK = FLEXDInstallMethodHook(
+                updateClass,
+                @selector(setFrame:),
+                (IMP)FLEXDUpdateSetFrame,
+                &FLEXDOriginalUpdateSetFrame
+            );
+
+            BOOL boundsOK = FLEXDInstallMethodHook(
+                updateClass,
+                @selector(setBounds:),
+                (IMP)FLEXDUpdateSetBounds,
+                &FLEXDOriginalUpdateSetBounds
+            );
+
+            if (frameOK && boundsOK) {
+                FLEXDUpdateHooksInstalled = YES;
+                NSLog(@"[FLEXDInject] DIRECT UpdateCoalescing hook installed: 358x257 -> 450; 390x701 -> 855");
+            }
+        }
+    }
+}
+
+
 static void FLEXDInstallHeightPatch(void) {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
@@ -158,6 +298,22 @@ static void FLEXDInstallHeightPatch(void) {
         method_setImplementation(method, (IMP)FLEXDPatchedUIViewSetFrame);
 
         NSLog(@"[FLEXDInject] Tarab patches installed: all Sources 358x~257 wrappers -> 450, UpdateCoalescing 390x~701 -> 855");
+    });
+
+    // V7: Directly hook the private SwiftUI classes too, because
+    // SwiftUI._UIInheritedView overrides its own geometry setters and can
+    // bypass UIView's setFrame: implementation.
+    FLEXDInstallDirectSwiftUIHooks();
+
+    // Retry after SwiftUI finishes loading/constructing its internal classes.
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.75 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        FLEXDInstallDirectSwiftUIHooks();
+    });
+
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        FLEXDInstallDirectSwiftUIHooks();
     });
 }
 

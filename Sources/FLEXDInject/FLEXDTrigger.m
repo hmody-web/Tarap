@@ -105,23 +105,29 @@ static void FLEXDShowExplorer(void) {
 @end
 
 
-#pragma mark - Tarab permanent height patch
+#pragma mark - Tarab Sources permanent height patch
 
 static IMP FLEXDOriginalUIViewSetFrame = NULL;
 
 static BOOL FLEXDIsTargetCollectionView(UIView *view, CGRect frame) {
     NSString *className = NSStringFromClass(view.class);
+
+    // Exact runtime target discovered in fleXD:
+    // SwiftUI.UpdateCoalescingCollectionView
+    // Original frame: {{0,0},{358,257}}
     BOOL rightClass = [className containsString:@"UpdateCoalescingCollectionView"];
-    BOOL rightWidth = fabs(frame.size.width - UIScreen.mainScreen.bounds.size.width) < 2.0;
-    BOOL originalHeight = frame.size.height > 680.0 && frame.size.height < 720.0;
-    BOOL startsAtTop = fabs(frame.origin.x) < 2.0 && fabs(frame.origin.y) < 2.0;
-    return rightClass && rightWidth && originalHeight && startsAtTop;
+    BOOL rightWidth = fabs(frame.size.width - 358.0) < 2.0;
+    BOOL originalHeight = frame.size.height > 250.0 && frame.size.height < 265.0;
+    BOOL startsAtOrigin = fabs(frame.origin.x) < 2.0 && fabs(frame.origin.y) < 2.0;
+
+    return rightClass && rightWidth && originalHeight && startsAtOrigin;
 }
 
 static void FLEXDPatchedUIViewSetFrame(UIView *self, SEL _cmd, CGRect frame) {
     if (FLEXDIsTargetCollectionView(self, frame)) {
-        frame.size.height = 855.0;
+        frame.size.height = 360.0;
     }
+
     ((void (*)(id, SEL, CGRect))FLEXDOriginalUIViewSetFrame)(self, _cmd, frame);
 }
 
@@ -129,10 +135,14 @@ static void FLEXDInstallHeightPatch(void) {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         Method method = class_getInstanceMethod(UIView.class, @selector(setFrame:));
-        if (!method) return;
+        if (!method) {
+            NSLog(@"[FLEXDInject] setFrame: method not found");
+            return;
+        }
+
         FLEXDOriginalUIViewSetFrame = method_getImplementation(method);
         method_setImplementation(method, (IMP)FLEXDPatchedUIViewSetFrame);
-        NSLog(@"[FLEXDInject] permanent 701 -> 855 height patch installed");
+        NSLog(@"[FLEXDInject] Sources list patch installed: 257 -> 360");
     });
 }
 

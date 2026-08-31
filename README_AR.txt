@@ -32,4 +32,8 @@ V2 fix:
 - FLEXManager is invoked using Objective-C runtime.
 - Avoids ScanDependencies/header-path failure with current fleXD.
 
-V3: Permanent runtime patch: SwiftUI UpdateCoalescingCollectionView 701 -> 855 on every setFrame/layout update.
+V4:
+- Targets SwiftUI.UpdateCoalescingCollectionView on Sources page.
+- Detects original frame around {{0,0},{358,257}}.
+- Forces height to 360 on every setFrame call, including after scroll/layout refresh.
+- fleXD remains available with the 3-finger long-press trigger.

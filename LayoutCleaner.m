@@ -2,43 +2,49 @@
 #import <objc/runtime.h>
 
 static IMP orig_tab_layout = NULL;
-static IMP orig_tab_vc_layout = NULL;
+static IMP inherited_tabvc_layout = NULL;
 
-static BOOL nameHas(Class c, NSString *s) {
-    if (!c) return NO;
-    NSString *n = NSStringFromClass(c);
-    return [n rangeOfString:s options:NSCaseInsensitiveSearch].location != NSNotFound;
+/* ---------- BannerHeightManager ---------- */
+
+static double zeroDouble(id self, SEL _cmd) { return 0.0; }
+static void ignoreDouble(id self, SEL _cmd, double value) {}
+static BOOL falseBool(id self, SEL _cmd) { return NO; }
+static void ignoreBool(id self, SEL _cmd, BOOL value) {}
+
+static void replaceIfPresent(Class c, const char *name, IMP imp) {
+    if (!c) return;
+    Method m = class_getInstanceMethod(c, sel_registerName(name));
+    if (m) method_setImplementation(m, imp);
 }
 
-static BOOL isTabBackgroundView(UIView *v) {
-    if (!v) return NO;
-    Class c = object_getClass(v);
-    return nameHas(c, @"BarBackground") ||
-           nameHas(c, @"VisualEffect") ||
-           nameHas(c, @"Backdrop") ||
-           nameHas(c, @"BackgroundView");
+/* ---------- Tab bar transparency ---------- */
+
+static BOOL classNameContains(id obj, NSString *needle) {
+    if (!obj) return NO;
+    NSString *name = NSStringFromClass(object_getClass(obj));
+    return [name rangeOfString:needle options:NSCaseInsensitiveSearch].location != NSNotFound;
 }
 
-static void clearTabBackgroundTree(UIView *v) {
-    if (!v) return;
-    for (UIView *sv in [v.subviews copy]) {
-        if (isTabBackgroundView(sv)) {
-            sv.backgroundColor = UIColor.clearColor;
-            sv.opaque = NO;
-            sv.hidden = YES;
+static void cleanTabSubviews(UIView *root) {
+    if (!root) return;
+
+    for (UIView *v in [root.subviews copy]) {
+        if (classNameContains(v, @"BarBackground") ||
+            classNameContains(v, @"Backdrop") ||
+            classNameContains(v, @"VisualEffect")) {
+            v.backgroundColor = UIColor.clearColor;
+            v.opaque = NO;
         }
-        clearTabBackgroundTree(sv);
+        cleanTabSubviews(v);
     }
 }
 
-static void configureTransparentTabBar(UITabBar *tab) {
+static void makeTabTransparent(UITabBar *tab) {
     if (!tab) return;
 
     tab.backgroundColor = UIColor.clearColor;
     tab.opaque = NO;
     tab.translucent = YES;
-    tab.backgroundImage = [UIImage new];
-    tab.shadowImage = [UIImage new];
 
     if (@available(iOS 15.0, *)) {
         UITabBarAppearance *a = [UITabBarAppearance new];
@@ -50,22 +56,38 @@ static void configureTransparentTabBar(UITabBar *tab) {
         tab.scrollEdgeAppearance = a;
     }
 
-    clearTabBackgroundTree(tab);
+    cleanTabSubviews(tab);
 }
 
-/*
- The important part:
- Let the selected page extend underneath the floating/glass tab bar.
- This removes the large opaque/black safe-area/container behind it.
- */
-static void extendSelectedPageUnderTabBar(UITabBarController *tc) {
+static void tab_layout(UITabBar *self, SEL _cmd) {
+    if (orig_tab_layout) {
+        ((void(*)(id,SEL))orig_tab_layout)(self, _cmd);
+    }
+    makeTabTransparent(self);
+}
+
+/* ---------- Selected page extends under the tab bar ---------- */
+
+static UIScrollView *firstScrollView(UIView *root) {
+    if (!root) return nil;
+    if ([root isKindOfClass:UIScrollView.class]) return (UIScrollView *)root;
+
+    for (UIView *v in root.subviews) {
+        UIScrollView *r = firstScrollView(v);
+        if (r) return r;
+    }
+    return nil;
+}
+
+static void extendPage(UITabBarController *tc) {
     if (!tc) return;
 
     UIViewController *vc = tc.selectedViewController;
     if (!vc) return;
 
     UIViewController *target = vc;
-    if ([vc isKindOfClass:[UINavigationController class]]) {
+
+    if ([vc isKindOfClass:UINavigationController.class]) {
         UIViewController *top = ((UINavigationController *)vc).topViewController;
         if (top) target = top;
     }
@@ -73,97 +95,53 @@ static void extendSelectedPageUnderTabBar(UITabBarController *tc) {
     target.edgesForExtendedLayout = UIRectEdgeAll;
     target.extendedLayoutIncludesOpaqueBars = YES;
 
-    UIScrollView *scroll = nil;
-    if ([target.view isKindOfClass:[UIScrollView class]]) {
-        scroll = (UIScrollView *)target.view;
-    } else {
-        for (UIView *v in target.view.subviews) {
-            if ([v isKindOfClass:[UIScrollView class]]) {
-                scroll = (UIScrollView *)v;
-                break;
-            }
-        }
-    }
+    UIView *page = target.view;
+    if (!page) return;
 
+    page.backgroundColor = page.backgroundColor ?: UIColor.clearColor;
+
+    UIScrollView *scroll = firstScrollView(page);
     if (scroll) {
-        scroll.contentInsetAdjustmentBehavior =
-            UIScrollViewContentInsetAdjustmentNever;
+        /*
+         Keep the page under the tab bar while preserving its own content.
+         We do NOT zero the whole safe-area and do NOT hide arbitrary views.
+        */
+        scroll.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
 
         UIEdgeInsets inset = scroll.contentInset;
         inset.bottom = 0;
         scroll.contentInset = inset;
 
         if (@available(iOS 13.0, *)) {
-            UIEdgeInsets vIndicator = scroll.verticalScrollIndicatorInsets;
-            vIndicator.bottom = 0;
-            scroll.verticalScrollIndicatorInsets = vIndicator;
+            UIEdgeInsets v = scroll.verticalScrollIndicatorInsets;
+            v.bottom = 0;
+            scroll.verticalScrollIndicatorInsets = v;
 
-            UIEdgeInsets hIndicator = scroll.horizontalScrollIndicatorInsets;
-            hIndicator.bottom = 0;
-            scroll.horizontalScrollIndicatorInsets = hIndicator;
+            UIEdgeInsets h = scroll.horizontalScrollIndicatorInsets;
+            h.bottom = 0;
+            scroll.horizontalScrollIndicatorInsets = h;
         }
     }
 
-    /*
-     Remove only large empty sibling views that sit immediately behind/
-     below the tab bar. Never hide controls, scroll views, labels, etc.
-    */
-    UIWindow *w = tc.view.window;
-    if (!w) return;
-
-    CGRect tabRect = [tc.tabBar convertRect:tc.tabBar.bounds toView:w];
-
-    for (UIView *v in [w.subviews copy]) {
-        if (v == tc.view || v == tc.tabBar) continue;
-        if ([v isKindOfClass:UIControl.class] ||
-            [v isKindOfClass:UIScrollView.class]) continue;
-
-        CGRect r = [v convertRect:v.bounds toView:w];
-
-        BOOL wide = r.size.width >= w.bounds.size.width * 0.90;
-        BOOL lower = r.origin.y >= tabRect.origin.y - 220.0;
-        BOOL reachesBottom = (r.origin.y + r.size.height) >=
-                             (w.bounds.origin.y + w.bounds.size.height) - 8.0;
-        BOOL mostlyEmpty = v.subviews.count == 0;
-
-        if (wide && lower && reachesBottom && mostlyEmpty) {
-            v.backgroundColor = UIColor.clearColor;
-            v.opaque = NO;
-            v.userInteractionEnabled = NO;
-        }
-    }
+    makeTabTransparent(tc.tabBar);
 }
 
-static void tab_layout(UITabBar *self, SEL _cmd) {
-    if (orig_tab_layout) {
-        ((void(*)(id,SEL))orig_tab_layout)(self, _cmd);
+/*
+ Safe per-class override:
+ Do NOT call method_setImplementation on an inherited UIViewController Method.
+ Instead class_addMethod creates an override owned only by UITabBarController.
+*/
+static void safe_tabvc_layout(UITabBarController *self, SEL _cmd) {
+    if (inherited_tabvc_layout) {
+        ((void(*)(id,SEL))inherited_tabvc_layout)(self, _cmd);
     }
-    configureTransparentTabBar(self);
-}
-
-static void tabvc_layout(UITabBarController *self, SEL _cmd) {
-    if (orig_tab_vc_layout) {
-        ((void(*)(id,SEL))orig_tab_vc_layout)(self, _cmd);
-    }
-    configureTransparentTabBar(self.tabBar);
-    extendSelectedPageUnderTabBar(self);
-}
-
-/* BannerHeightManager remains targeted and safe. */
-static double zeroDouble(id self, SEL _cmd) { return 0.0; }
-static void ignoreDouble(id self, SEL _cmd, double x) {}
-static BOOL falseBool(id self, SEL _cmd) { return NO; }
-static void ignoreBool(id self, SEL _cmd, BOOL x) {}
-
-static void replaceIfPresent(Class c, const char *name, IMP imp) {
-    if (!c) return;
-    Method m = class_getInstanceMethod(c, sel_registerName(name));
-    if (m) method_setImplementation(m, imp);
+    extendPage(self);
 }
 
 __attribute__((constructor))
-static void init_v3(void) {
+static void init_v4(void) {
     @autoreleasepool {
+        /* Targeted banner manager only */
         Class bhm = objc_getClass("_TtC5Tarab19BannerHeightManager");
         if (!bhm) bhm = objc_getClass("BannerHeightManager");
 
@@ -176,6 +154,7 @@ static void init_v3(void) {
         replaceIfPresent(bhm, "shouldShowBanner", (IMP)falseBool);
         replaceIfPresent(bhm, "setShouldShowBanner:", (IMP)ignoreBool);
 
+        /* V2-style UITabBar hook - already known to work */
         Class tb = UITabBar.class;
         Method tm = class_getInstanceMethod(tb, @selector(layoutSubviews));
         if (tm) {
@@ -183,11 +162,36 @@ static void init_v3(void) {
             method_setImplementation(tm, (IMP)tab_layout);
         }
 
+        /*
+         Add an override ONLY on UITabBarController.
+         This avoids modifying UIViewController globally.
+        */
         Class tc = UITabBarController.class;
-        Method cm = class_getInstanceMethod(tc, @selector(viewDidLayoutSubviews));
-        if (cm) {
-            orig_tab_vc_layout = method_getImplementation(cm);
-            method_setImplementation(cm, (IMP)tabvc_layout);
+        SEL sel = @selector(viewDidLayoutSubviews);
+
+        Method inherited = class_getInstanceMethod(tc, sel);
+        if (inherited) {
+            inherited_tabvc_layout = method_getImplementation(inherited);
+            const char *types = method_getTypeEncoding(inherited);
+
+            BOOL added = class_addMethod(tc, sel, (IMP)safe_tabvc_layout, types);
+
+            if (!added) {
+                /*
+                 If UITabBarController already owns an override, replace only
+                 its own method after confirming it is present directly.
+                */
+                unsigned int count = 0;
+                Method *methods = class_copyMethodList(tc, &count);
+                for (unsigned int i = 0; i < count; i++) {
+                    if (method_getName(methods[i]) == sel) {
+                        inherited_tabvc_layout = method_getImplementation(methods[i]);
+                        method_setImplementation(methods[i], (IMP)safe_tabvc_layout);
+                        break;
+                    }
+                }
+                free(methods);
+            }
         }
     }
 }

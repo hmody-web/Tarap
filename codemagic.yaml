@@ -1,21 +1,12 @@
 workflows:
-  layout-cleaner-any-ipa:
-    name: Build LayoutCleaner ANY IPA
+  layout-cleaner-safe-v4:
+    name: Build LayoutCleaner SAFE V4
     instance_type: mac_mini_m2
     max_build_duration: 30
-
     scripts:
-      - name: Show repository files
+      - name: Build SAFE V4
         script: |
-          pwd
-          echo
-          find . -maxdepth 5 -type f | sort
-
-      - name: Build ANY IPA
-        script: |
-          chmod +x build_and_merge.sh
-          chmod +x inject_dylib.py
+          chmod +x build_and_merge.sh inject_dylib.py
           ./build_and_merge.sh
-
     artifacts:
-      - "Tarab_5.11_LayoutCleaner_ANY_IPA.ipa"
+      - "Tarab_5.11_LayoutCleaner_SAFE_V4.ipa"

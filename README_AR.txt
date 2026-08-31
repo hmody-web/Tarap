@@ -1,16 +1,18 @@
-LayoutCleaner ANY IPA
+SAFE V4
 
-هذه النسخة لا تعتمد على اسم ملف الـ IPA إطلاقاً.
+سبب crash V3/VANY:
+كان hook لـ UITabBarController.viewDidLayoutSubviews يتم عبر Method موروث،
+وهذا ممكن يعدل UIViewController.viewDidLayoutSubviews لكل التطبيق.
 
-السكربت:
-- يبحث عن أي ملف ينتهي بـ .ipa داخل الريبو.
-- يأخذ أول IPA يجده.
-- إذا LayoutCleaner.framework موجود، يستبدله.
-- إذا LC_LOAD_DYLIB موجود، لا يعدل Mach-O.
-- إذا غير موجود، يضيفه.
-- يخرج ملف:
-  Tarab_5.11_LayoutCleaner_ANY_IPA.ipa
+V4:
+- ينشئ override خاص بـ UITabBarController فقط عبر class_addMethod.
+- لا يغير UIViewController العام.
+- يحتفظ بمنطق V2 للـ UITabBar لأنه ثبت أنه يعمل.
+- يصفر BannerHeightManager.
+- يحاول تمديد محتوى الصفحة خلف الـ tab bar بدون إخفاء views عشوائية.
+- يقبل أي IPA موجود مهما كان اسمه.
 
-مهم:
-إذا كان عندك أكثر من IPA داخل الريبو، سيأخذ أول واحد يجده.
-الأفضل تترك IPA واحد فقط لتجنب اختيار ملف غير مقصود.
+الأفضل استخدام آخر IPA ثبت أنه يفتح عندك كـ input.
+الناتج:
+Tarab_5.11_LayoutCleaner_SAFE_V4.ipa
+ثم أعد توقيعه.

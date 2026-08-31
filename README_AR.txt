@@ -1,35 +1,27 @@
-LayoutCleaner - النسخة المصححة
+LayoutCleaner SAFE V2
 
-طريقة الاستخدام:
+سبب التغيير:
+النسخة السابقة كانت تعمل Hook عام على UIViewController وتفحص شجرة الـViews.
+هذا ممكن يسبب crash عند الإقلاع.
 
-1. ارفع هذه الملفات إلى GitHub / Codemagic:
-   - LayoutCleaner.c
-   - inject_dylib.py
-   - build_and_merge.sh
-   - codemagic.yaml
-
-2. ضع ملف الـ IPA داخل نفس الريبو.
-   لا يهم اسم الملف.
-
-3. شغّل Workflow:
-   Build LayoutCleaner IPA
-
-4. السكربت سيبحث تلقائياً عن أول ملف .ipa.
-
-5. الناتج:
-   Tarab_5.11_LayoutCleaner.ipa
-
-6. أعد توقيع الناتج قبل التثبيت.
-
-وظيفة LayoutCleaner:
-- إخفاء حاويات الإعلان المعروفة.
-- تصفير ارتفاع حاوية الإعلان عند الإمكان.
-- إزالة/تقليص المساحة الفارغة القريبة من Bottom Tab Bar.
-- جعل خلفية UITabBar شفافة.
-- الإبقاء على ProfileOverlay.framework و PortraitOverlay.framework بدون حذف.
+SAFE V2:
+- لا تعمل Hook على UIViewController نهائياً.
+- تستهدف BannerHeightManager الموجود داخل Tarab فقط.
+- تجبر:
+  bannerHeight = 0
+  inlineBannerHeight = 0
+  bannerBottomPadding = 0 (إن وجد)
+  shouldShowBanner = false (إن وجد)
+- تجعل UITabBar شفاف باستخدام UITabBarAppearance.
+- تبقي ProfileOverlay.framework وPortraitOverlay.framework بدون تغيير.
 
 مهم:
-إذا ظهر:
-No IPA file found
+ضع IPA الأصلي المدموج:
+Tarab_5.11_ProfileOverlay_Merged.ipa
+مع هذه الملفات في نفس GitHub repo.
 
-فهذا يعني أن ملف IPA نفسه غير موجود داخل Git repository الذي يقوم Codemagic باستنساخه.
+شغل Codemagic.
+الناتج:
+Tarab_5.11_LayoutCleaner_SAFE_V2.ipa
+
+ثم وقعه وثبته.

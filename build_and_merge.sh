@@ -3,79 +3,49 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
-
-OUTPUT_IPA="${2:-Tarab_5.11_LayoutCleaner.ipa}"
+OUTPUT_IPA="${2:-Tarab_5.11_LayoutCleaner_SAFE_V2.ipa}"
 
 if [ "${1:-}" != "" ] && [ -f "${1:-}" ]; then
-    INPUT_IPA="$1"
+  INPUT_IPA="$1"
 else
-    echo "==> Searching for IPA automatically"
-
-    INPUT_IPA="$(find "$ROOT" \
-      -maxdepth 3 \
-      -type f \
-      -name '*.ipa' \
-      ! -name "$OUTPUT_IPA" \
-      | head -1 || true)"
+  INPUT_IPA="$(find "$ROOT" -maxdepth 3 -type f -name '*.ipa' \
+    ! -name 'Tarab_5.11_LayoutCleaner_SAFE_V2.ipa' \
+    ! -name 'Tarab_5.11_LayoutCleaner.ipa' | head -1 || true)"
 fi
 
 if [ -z "${INPUT_IPA:-}" ] || [ ! -f "$INPUT_IPA" ]; then
-    echo
-    echo "❌ No IPA file found."
-    echo
-    echo "Put your IPA anywhere inside this repository."
-    echo
-    echo "Files currently found:"
-    find "$ROOT" -maxdepth 3 -type f | sort
-    exit 1
+  echo "❌ No input IPA found"
+  find "$ROOT" -maxdepth 3 -type f | sort
+  exit 1
 fi
 
-echo "✅ Found IPA:"
-echo "$INPUT_IPA"
+echo "✅ Input IPA: $INPUT_IPA"
 
-WORK="$ROOT/work_layoutcleaner"
-
+WORK="$ROOT/work_safe_v2"
 rm -rf "$WORK"
 mkdir -p "$WORK"
 cd "$WORK"
 
-echo
 echo "==> Unpacking IPA"
 unzip -q "$INPUT_IPA"
 
 APP="$(find Payload -maxdepth 1 -type d -name '*.app' | head -1)"
+[ -n "$APP" ] || { echo "❌ No .app inside IPA"; exit 1; }
 
-if [ -z "$APP" ]; then
-    echo "❌ No .app found inside IPA"
-    exit 1
-fi
-
-EXEC_NAME=$(/usr/libexec/PlistBuddy \
-  -c 'Print :CFBundleExecutable' \
-  "$APP/Info.plist")
-
+EXEC_NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Info.plist")
 EXEC="$APP/$EXEC_NAME"
 
-if [ ! -f "$EXEC" ]; then
-    echo "❌ Main executable not found: $EXEC"
-    exit 1
-fi
-
-echo "✅ App:"
-echo "$APP"
-
-echo "✅ Executable:"
-echo "$EXEC_NAME"
-
-echo
-echo "==> Building LayoutCleaner.framework"
+echo "✅ App: $APP"
+echo "✅ Executable: $EXEC_NAME"
 
 SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+FW="$APP/Frameworks/LayoutCleaner.framework"
 
-FRAMEWORK_DIR="$APP/Frameworks/LayoutCleaner.framework"
+echo "==> Replacing old LayoutCleaner.framework if present"
+rm -rf "$FW"
+mkdir -p "$FW"
 
-mkdir -p "$FRAMEWORK_DIR"
-
+echo "==> Building SAFE V2 framework"
 xcrun clang \
   -arch arm64 \
   -isysroot "$SDK" \
@@ -86,79 +56,49 @@ xcrun clang \
   -framework Foundation \
   -framework UIKit \
   -install_name '@rpath/LayoutCleaner.framework/LayoutCleaner' \
-  -o "$FRAMEWORK_DIR/LayoutCleaner"
+  -o "$FW/LayoutCleaner"
 
-chmod 755 "$FRAMEWORK_DIR/LayoutCleaner"
+chmod 755 "$FW/LayoutCleaner"
 
-cat > "$FRAMEWORK_DIR/Info.plist" <<'PLIST'
+cat > "$FW/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+ "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleDevelopmentRegion</key>
-    <string>en</string>
-
-    <key>CFBundleExecutable</key>
-    <string>LayoutCleaner</string>
-
-    <key>CFBundleIdentifier</key>
-    <string>com.alsaray.LayoutCleaner</string>
-
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-
-    <key>CFBundleName</key>
-    <string>LayoutCleaner</string>
-
-    <key>CFBundlePackageType</key>
-    <string>FMWK</string>
-
-    <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
-
-    <key>CFBundleVersion</key>
-    <string>1</string>
-
-    <key>MinimumOSVersion</key>
-    <string>15.0</string>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <key>CFBundleExecutable</key><string>LayoutCleaner</string>
+  <key>CFBundleIdentifier</key><string>com.alsaray.LayoutCleaner</string>
+  <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+  <key>CFBundleName</key><string>LayoutCleaner</string>
+  <key>CFBundlePackageType</key><string>FMWK</string>
+  <key>CFBundleShortVersionString</key><string>2.0</string>
+  <key>CFBundleVersion</key><string>2</string>
+  <key>MinimumOSVersion</key><string>15.0</string>
 </dict>
 </plist>
 PLIST
 
-echo
-echo "==> Injecting LayoutCleaner.framework"
+echo "==> Ensuring LC_LOAD_DYLIB exists"
+if otool -L "$EXEC" | grep -q '@rpath/LayoutCleaner.framework/LayoutCleaner'; then
+  echo "✅ LayoutCleaner load command already exists"
+else
+  python3 "$ROOT/inject_dylib.py" \
+    "$EXEC" '@rpath/LayoutCleaner.framework/LayoutCleaner'
+fi
 
-python3 "$ROOT/inject_dylib.py" \
-  "$EXEC" \
-  '@rpath/LayoutCleaner.framework/LayoutCleaner'
+echo "==> Verification"
+file "$FW/LayoutCleaner"
+otool -L "$EXEC" | grep -E 'LayoutCleaner|ProfileOverlay|PortraitOverlay' || true
 
-echo
-echo "==> Checking framework"
-
-file "$FRAMEWORK_DIR/LayoutCleaner" || true
-otool -L "$EXEC" | grep -i LayoutCleaner || true
-
-echo
-echo "==> Removing old main app signature"
-
+echo "==> Removing main app signature"
 rm -rf "$APP/_CodeSignature"
 
-echo
-echo "==> Packing output IPA"
-
+echo "==> Packing IPA"
 cd "$WORK"
-
 rm -f "$ROOT/$OUTPUT_IPA"
-
 zip -qry "$ROOT/$OUTPUT_IPA" Payload
 
-cd "$ROOT"
-
 echo
-echo "====================================="
-echo "✅ DONE"
-echo "Output:"
-echo "$ROOT/$OUTPUT_IPA"
-echo
-echo "⚠️ Re-sign the IPA before installing."
-echo "====================================="
+echo "✅ DONE: $ROOT/$OUTPUT_IPA"
+echo "⚠️ Re-sign it before installing."

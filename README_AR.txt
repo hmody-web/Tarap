@@ -1,4 +1,4 @@
-Tarab + fleXD Editable Runtime Explorer
+Tarab + fleXD Editable Runtime Explorer V2
 
 هذه الحزمة تحتوي:
 - نفس Tarab RuntimeDiag V9 IPA
@@ -26,3 +26,8 @@ fleXD الحديثة تدعم:
 ملاحظة:
 بعض قيم SwiftUI / Auto Layout ممكن تتغير ثم يرجع النظام يحسبها،
 لكن fleXD نفسها تدعم الكتابة والتعديل Runtime.
+
+V2 fix:
+- Removed direct FLEX header import from trigger.
+- FLEXManager is invoked using Objective-C runtime.
+- Avoids ScanDependencies/header-path failure with current fleXD.

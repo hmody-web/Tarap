@@ -40,7 +40,11 @@ xcodebuild \
   ONLY_ACTIVE_ARCH=NO \
   ARCHS=arm64 \
   IPHONEOS_DEPLOYMENT_TARGET=15.0 \
-  build
+  build || {
+  echo "❌ xcodebuild failed. Relevant errors:"
+  find "$ROOT/DerivedData/Logs" -type f -maxdepth 5 2>/dev/null | head -20 || true
+  exit 1
+}
 
 echo "➡️ Searching for dynamic product..."
 PRODUCT="$(find "$ROOT/DerivedData/Build/Products" -type d \

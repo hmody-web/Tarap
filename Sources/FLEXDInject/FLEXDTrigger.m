@@ -1,13 +1,43 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
-#import <FLEX/FLEX.h>
+#import <objc/message.h>
 
 static char kFLEXDGestureKey;
+
+static void FLEXDShowExplorer(void) {
+    Class managerClass = NSClassFromString(@"FLEXManager");
+    if (!managerClass) {
+        NSLog(@"[FLEXDInject] FLEXManager class not found");
+        return;
+    }
+
+    SEL sharedSel = sel_registerName("sharedManager");
+    SEL showSel = sel_registerName("showExplorer");
+
+    if (![managerClass respondsToSelector:sharedSel]) {
+        NSLog(@"[FLEXDInject] sharedManager selector unavailable");
+        return;
+    }
+
+    id manager = ((id (*)(id, SEL))objc_msgSend)(managerClass, sharedSel);
+    if (!manager) {
+        NSLog(@"[FLEXDInject] FLEXManager sharedManager returned nil");
+        return;
+    }
+
+    if (![manager respondsToSelector:showSel]) {
+        NSLog(@"[FLEXDInject] showExplorer selector unavailable");
+        return;
+    }
+
+    ((void (*)(id, SEL))objc_msgSend)(manager, showSel);
+}
 
 @interface FLEXDTrigger : NSObject
 + (instancetype)shared;
 - (void)installOnAllWindows;
+- (void)installOnWindow:(UIWindow *)window;
 - (void)handleGesture:(UILongPressGestureRecognizer *)gesture;
 @end
 
@@ -59,14 +89,17 @@ static char kFLEXDGestureKey;
         }
     }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     for (UIWindow *window in app.windows) {
         [self installOnWindow:window];
     }
+#pragma clang diagnostic pop
 }
 
 - (void)handleGesture:(UILongPressGestureRecognizer *)gesture {
     if (gesture.state != UIGestureRecognizerStateBegan) return;
-    [[FLEXManager sharedManager] showExplorer];
+    FLEXDShowExplorer();
 }
 
 @end

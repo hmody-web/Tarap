@@ -104,8 +104,42 @@ static void FLEXDShowExplorer(void) {
 
 @end
 
+
+#pragma mark - Tarab permanent height patch
+
+static IMP FLEXDOriginalUIViewSetFrame = NULL;
+
+static BOOL FLEXDIsTargetCollectionView(UIView *view, CGRect frame) {
+    NSString *className = NSStringFromClass(view.class);
+    BOOL rightClass = [className containsString:@"UpdateCoalescingCollectionView"];
+    BOOL rightWidth = fabs(frame.size.width - UIScreen.mainScreen.bounds.size.width) < 2.0;
+    BOOL originalHeight = frame.size.height > 680.0 && frame.size.height < 720.0;
+    BOOL startsAtTop = fabs(frame.origin.x) < 2.0 && fabs(frame.origin.y) < 2.0;
+    return rightClass && rightWidth && originalHeight && startsAtTop;
+}
+
+static void FLEXDPatchedUIViewSetFrame(UIView *self, SEL _cmd, CGRect frame) {
+    if (FLEXDIsTargetCollectionView(self, frame)) {
+        frame.size.height = 855.0;
+    }
+    ((void (*)(id, SEL, CGRect))FLEXDOriginalUIViewSetFrame)(self, _cmd, frame);
+}
+
+static void FLEXDInstallHeightPatch(void) {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        Method method = class_getInstanceMethod(UIView.class, @selector(setFrame:));
+        if (!method) return;
+        FLEXDOriginalUIViewSetFrame = method_getImplementation(method);
+        method_setImplementation(method, (IMP)FLEXDPatchedUIViewSetFrame);
+        NSLog(@"[FLEXDInject] permanent 701 -> 855 height patch installed");
+    });
+}
+
 static void FLEXDInstall(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
+        FLEXDInstallHeightPatch();
+
         FLEXDTrigger *trigger = [FLEXDTrigger shared];
         [trigger installOnAllWindows];
 

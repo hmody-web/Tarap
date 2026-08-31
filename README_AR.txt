@@ -31,3 +31,5 @@ V2 fix:
 - Removed direct FLEX header import from trigger.
 - FLEXManager is invoked using Objective-C runtime.
 - Avoids ScanDependencies/header-path failure with current fleXD.
+
+V3: Permanent runtime patch: SwiftUI UpdateCoalescingCollectionView 701 -> 855 on every setFrame/layout update.

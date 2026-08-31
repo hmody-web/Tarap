@@ -3,9 +3,6 @@ workflows:
     name: Tarab Banner Force
     instance_type: mac_mini_m2
     max_build_duration: 60
-    environment:
-      vars:
-        IPA_FILE: "Tarab_fleXD_Editable.ipa"
     scripts:
       - name: Install Theos
         script: |
@@ -31,7 +28,15 @@ workflows:
           cp build/Release/insert_dylib ../insert_dylib
       - name: Inject
         script: |
+          set -e
           chmod +x inject.sh
-          ./inject.sh "$IPA_FILE" Tarab_Banner_Forced.ipa
+          IPA_FILE="$(find "$CM_BUILD_DIR" -maxdepth 2 -type f -iname '*.ipa' ! -name 'Tarab_Banner_Forced.ipa' | head -n 1)"
+          if [ -z "$IPA_FILE" ]; then
+            echo "ERROR: No input IPA found in repository"
+            find "$CM_BUILD_DIR" -maxdepth 2 -type f | sort
+            exit 1
+          fi
+          echo "Using input IPA: $IPA_FILE"
+          ./inject.sh "$IPA_FILE" "$CM_BUILD_DIR/Tarab_Banner_Forced.ipa"
     artifacts:
       - Tarab_Banner_Forced.ipa

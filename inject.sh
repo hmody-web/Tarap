@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
-IPA="${1:-Tarab.ipa}"
-OUT="${2:-Tarab_Banner_Forced.ipa}"
+IPA="${1:?Input IPA path required}"
+OUT="${2:-$PWD/Tarab_Banner_Forced.ipa}"
 ROOT="$PWD/work"
 rm -rf "$ROOT" && mkdir -p "$ROOT"
 unzip -q "$IPA" -d "$ROOT"
@@ -16,5 +16,8 @@ chmod +x tools/insert_dylib
 ./tools/insert_dylib --strip-codesig --inplace @executable_path/TarabBannerForce.dylib "$APP/$BIN"
 find "$APP" -name '_CodeSignature' -type d -prune -exec rm -rf {} + || true
 rm -f "$APP/embedded.mobileprovision"
-(cd "$ROOT" && zip -qry "$OLDPWD/$OUT" Payload)
+OUT_ABS="$OUT"
+[[ "$OUT_ABS" = /* ]] || OUT_ABS="$PWD/$OUT_ABS"
+rm -f "$OUT_ABS"
+(cd "$ROOT" && zip -qry "$OUT_ABS" Payload)
 echo "Created: $OUT"

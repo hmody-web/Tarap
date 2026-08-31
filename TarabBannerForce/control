@@ -1,8 +1,0 @@
-Package: com.scrptaty.tarabbannerforce
-Name: Tarab Banner Force
-Version: 1.0.0
-Architecture: iphoneos-arm
-Description: Forces custom Tarab banner metadata.
-Maintainer: scrptaty
-Author: scrptaty
-Section: Tweaks

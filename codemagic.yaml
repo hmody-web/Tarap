@@ -1,42 +1,17 @@
 workflows:
-  tarab-banner-inject:
-    name: Tarab Banner Force
+  tarab-remote-banner:
+    name: Tarab Remote API Banner
     instance_type: mac_mini_m2
     max_build_duration: 60
+
+    environment:
+      xcode: latest
+
     scripts:
-      - name: Install Theos
+      - name: Build and inject remote banner
         script: |
-          git clone --recursive https://github.com/theos/theos.git "$CM_BUILD_DIR/theos"
-          echo "THEOS=$CM_BUILD_DIR/theos" >> $CM_ENV
-      - name: Build dylib
-        script: |
-          set -e
-          brew install ldid
-          export THEOS="$CM_BUILD_DIR/theos"
-          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-          echo "ldid path:"
-          which ldid
-          ldid -h || true
-          cd TarabBannerForce
-          make clean package FINALPACKAGE=1
-      - name: Install insert_dylib
-        script: |
-          mkdir -p tools
-          git clone https://github.com/Tyilo/insert_dylib.git tools/insert_dylib-src
-          cd tools/insert_dylib-src
-          xcodebuild -configuration Release
-          cp build/Release/insert_dylib ../insert_dylib
-      - name: Inject
-        script: |
-          set -e
-          chmod +x inject.sh
-          IPA_FILE="$(find "$CM_BUILD_DIR" -maxdepth 2 -type f -iname '*.ipa' ! -name 'Tarab_Banner_Forced.ipa' | head -n 1)"
-          if [ -z "$IPA_FILE" ]; then
-            echo "ERROR: No input IPA found in repository"
-            find "$CM_BUILD_DIR" -maxdepth 2 -type f | sort
-            exit 1
-          fi
-          echo "Using input IPA: $IPA_FILE"
-          ./inject.sh "$IPA_FILE" "$CM_BUILD_DIR/Tarab_Banner_Forced.ipa"
+          chmod +x build_and_inject.sh inject_dylib.py
+          ./build_and_inject.sh
+
     artifacts:
-      - Tarab_Banner_Forced.ipa
+      - Tarab_RemoteBanner_Injected.ipa

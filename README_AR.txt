@@ -1,24 +1,35 @@
-# LayoutCleaner
+LayoutCleaner - النسخة المصححة
 
-هذا البكج يبني Framework داخل Codemagic/macOS ثم يدمجه داخل IPA الحالي.
+طريقة الاستخدام:
 
-الوظيفة:
-- إخفاء/تصفير حاويات الإعلانات المعروفة.
-- محاولة إزالة المساحة الفارغة القريبة من الـ Bottom Tab Bar.
-- جعل خلفية UITabBar شفافة مع بقاء الأزرار.
+1. ارفع هذه الملفات إلى GitHub / Codemagic:
+   - LayoutCleaner.c
+   - inject_dylib.py
+   - build_and_merge.sh
+   - codemagic.yaml
 
-الملفات:
-- LayoutCleaner.c : كود التعديل Runtime
-- inject_dylib.py : يضيف LC_LOAD_DYLIB إلى الملف التنفيذي
-- build_and_merge.sh : يبني ويدمج ويخرج IPA
-- codemagic.yaml : Workflow جاهز
+2. ضع ملف الـ IPA داخل نفس الريبو.
+   لا يهم اسم الملف.
 
-طريقة الاستخدام في Codemagic:
-1) ضع داخل الريبو هذه الملفات + Tarab_5.11_ProfileOverlay_Merged.ipa
-2) استخدم codemagic.yaml
-3) شغل workflow باسم Build LayoutCleaner IPA
-4) الناتج: Tarab_5.11_LayoutCleaner.ipa
-5) أعد توقيع الـ IPA قبل التثبيت.
+3. شغّل Workflow:
+   Build LayoutCleaner IPA
 
-ملاحظة:
-هذا لا يحذف ProfileOverlay.framework ولا PortraitOverlay.framework الموجودين.
+4. السكربت سيبحث تلقائياً عن أول ملف .ipa.
+
+5. الناتج:
+   Tarab_5.11_LayoutCleaner.ipa
+
+6. أعد توقيع الناتج قبل التثبيت.
+
+وظيفة LayoutCleaner:
+- إخفاء حاويات الإعلان المعروفة.
+- تصفير ارتفاع حاوية الإعلان عند الإمكان.
+- إزالة/تقليص المساحة الفارغة القريبة من Bottom Tab Bar.
+- جعل خلفية UITabBar شفافة.
+- الإبقاء على ProfileOverlay.framework و PortraitOverlay.framework بدون حذف.
+
+مهم:
+إذا ظهر:
+No IPA file found
+
+فهذا يعني أن ملف IPA نفسه غير موجود داخل Git repository الذي يقوم Codemagic باستنساخه.

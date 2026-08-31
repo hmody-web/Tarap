@@ -1,25 +1,27 @@
-Tarab Runtime Diagnostic V9.2 - Console
+Tarab Runtime Diagnostic V9.3
 
-هذه النسخة لا تحتاج استخراج ملفات من Documents.
+هدف هذه النسخة:
+تجاوز ظهور <private> في System Log.
 
-بعد البناء:
-1. استخرج Tarab_RuntimeDiag_V9_2.ipa
-2. وقعه وثبته.
-3. افتح طرب.
-4. افتح الأقسام الأربعة واحد واحد.
-5. انتظر ثانية داخل كل قسم.
-6. اسحب System Log / Console log مثل tarab.txt.
-7. دز الملف إلي.
-
-المهم:
-كل سطر تشخيص يبدأ بـ:
+كل بيانات التشخيص تبدأ بـ:
 [TarabBottom]
 
-أنا راح أركز فقط على هذه الأسطر.
+النسخة تستخدم:
+- class_getName
+- %{public}s
+- أرقام منفصلة للـ frame
+- أرقام منفصلة للـ safeArea
+- أرقام منفصلة للـ backgroundColor
 
-اللوج يطبع فقط العناصر الموجودة ضمن آخر 300pt من الشاشة
-أو العناصر المهمة المرتبطة بـ:
-Tab / Bar / Background / Backdrop / Container / VisualEffect / Scroll / Content
+بعد التثبيت:
+1. افتح التطبيق.
+2. افتح الأقسام الأربعة واحد واحد.
+3. انتظر ثانية داخل كل قسم.
+4. اسحب System Log مثل tarab.txt.
+5. دز الملف.
+
+أنا أحتاج فقط أسطر:
+[TarabBottom]
 
 الناتج:
-Tarab_RuntimeDiag_V9_2.zip
+Tarab_RuntimeDiag_V9_3.zip

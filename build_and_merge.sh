@@ -4,23 +4,20 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
-OUT_IPA="Tarab_RuntimeDiag_V9_2.ipa"
-OUT_ZIP="Tarab_RuntimeDiag_V9_2.zip"
-
-echo "==> Searching for ANY IPA"
+OUT_IPA="Tarab_RuntimeDiag_V9_3.ipa"
+OUT_ZIP="Tarab_RuntimeDiag_V9_3.zip"
 
 INPUT="$(find "$ROOT" -maxdepth 5 -type f -name '*.ipa' \
  ! -name "$OUT_IPA" | head -1 || true)"
 
 if [ -z "${INPUT:-}" ]; then
     echo "❌ No IPA found"
-    find "$ROOT" -maxdepth 5 -type f | sort
     exit 1
 fi
 
 echo "✅ Input: $INPUT"
 
-WORK="$ROOT/work_v9_2"
+WORK="$ROOT/work_v9_3"
 rm -rf "$WORK"
 mkdir -p "$WORK"
 cd "$WORK"
@@ -34,11 +31,8 @@ EXEC_NAME=$(/usr/libexec/PlistBuddy \
  -c 'Print :CFBundleExecutable' "$APP/Info.plist")
 
 EXEC="$APP/$EXEC_NAME"
-
 FW="$APP/Frameworks/RuntimeDiag.framework"
 SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
-
-echo "==> Building RuntimeDiag V9.2"
 
 rm -rf "$FW"
 mkdir -p "$FW"
@@ -67,17 +61,14 @@ cat > "$FW/Info.plist" <<'EOF'
 <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
 <key>CFBundleName</key><string>RuntimeDiag</string>
 <key>CFBundlePackageType</key><string>FMWK</string>
-<key>CFBundleShortVersionString</key><string>9.2</string>
-<key>CFBundleVersion</key><string>92</string>
+<key>CFBundleShortVersionString</key><string>9.3</string>
+<key>CFBundleVersion</key><string>93</string>
 <key>MinimumOSVersion</key><string>15.0</string>
 </dict></plist>
 EOF
 
-if otool -L "$EXEC" | grep -q \
+if ! otool -L "$EXEC" | grep -q \
  '@rpath/RuntimeDiag.framework/RuntimeDiag'; then
-    echo "✅ Existing RuntimeDiag load command retained"
-else
-    echo "==> Injecting RuntimeDiag"
     python3 "$ROOT/inject_dylib.py" \
       "$EXEC" \
       '@rpath/RuntimeDiag.framework/RuntimeDiag'
@@ -85,17 +76,13 @@ fi
 
 rm -rf "$APP/_CodeSignature"
 
-echo "==> Packing IPA"
-
 cd "$WORK"
 rm -f "$ROOT/$OUT_IPA"
 zip -qry "$ROOT/$OUT_IPA" Payload
-
-echo "==> Packing ZIP"
 
 cd "$ROOT"
 rm -f "$OUT_ZIP"
 zip -q "$OUT_ZIP" "$OUT_IPA"
 zip -q "$OUT_ZIP" "README_AR.txt"
 
-echo "✅ Output ZIP: $ROOT/$OUT_ZIP"
+echo "✅ Output: $OUT_ZIP"

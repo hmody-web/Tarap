@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
-OUT_IPA="Tarab_RuntimeDiag_V9_3.ipa"
-OUT_ZIP="Tarab_RuntimeDiag_V9_3.zip"
+OUT_IPA="Tarab_RuntimeDiag_V9_3_1.ipa"
+OUT_ZIP="Tarab_RuntimeDiag_V9_3_1.zip"
 
 INPUT="$(find "$ROOT" -maxdepth 5 -type f -name '*.ipa' \
  ! -name "$OUT_IPA" | head -1 || true)"
@@ -61,8 +61,8 @@ cat > "$FW/Info.plist" <<'EOF'
 <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
 <key>CFBundleName</key><string>RuntimeDiag</string>
 <key>CFBundlePackageType</key><string>FMWK</string>
-<key>CFBundleShortVersionString</key><string>9.3</string>
-<key>CFBundleVersion</key><string>93</string>
+<key>CFBundleShortVersionString</key><string>9.3.1</string>
+<key>CFBundleVersion</key><string>931</string>
 <key>MinimumOSVersion</key><string>15.0</string>
 </dict></plist>
 EOF

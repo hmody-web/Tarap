@@ -258,8 +258,205 @@ static void FLEXDInstallFilesTablePatch(void) {
     });
 }
 
+
+#pragma mark - Strong SwiftUI 450 patches
+
+static IMP FLEXDOriginalInheritedSetFrame = NULL;
+static IMP FLEXDOriginalInheritedSetBounds = NULL;
+static IMP FLEXDOriginalInheritedLayoutSubviews = NULL;
+
+static IMP FLEXDOriginalUpdateSetFrame = NULL;
+static IMP FLEXDOriginalUpdateSetBounds = NULL;
+static IMP FLEXDOriginalUpdateLayoutSubviews = NULL;
+
+static BOOL FLEXDIsSources450Geometry(CGRect frame) {
+    BOOL widthMatch = fabs(frame.size.width - 358.0) < 3.0;
+    BOOL heightMatch =
+        (frame.size.height > 245.0 && frame.size.height < 275.0) ||
+        (frame.size.height > 440.0 && frame.size.height < 460.0);
+    return widthMatch && heightMatch;
+}
+
+static CGRect FLEXDForce450Frame(CGRect frame) {
+    if (FLEXDIsSources450Geometry(frame)) {
+        frame.size.height = 450.0;
+    }
+    return frame;
+}
+
+static CGRect FLEXDForce450Bounds(CGRect bounds) {
+    if (fabs(bounds.size.width - 358.0) < 3.0 &&
+        ((bounds.size.height > 245.0 && bounds.size.height < 275.0) ||
+         (bounds.size.height > 440.0 && bounds.size.height < 460.0))) {
+        bounds.size.height = 450.0;
+    }
+    return bounds;
+}
+
+static void FLEXDInheritedSetFrame(id self, SEL _cmd, CGRect frame) {
+    frame = FLEXDForce450Frame(frame);
+    ((void (*)(id, SEL, CGRect))FLEXDOriginalInheritedSetFrame)(self, _cmd, frame);
+}
+
+static void FLEXDInheritedSetBounds(id self, SEL _cmd, CGRect bounds) {
+    bounds = FLEXDForce450Bounds(bounds);
+    ((void (*)(id, SEL, CGRect))FLEXDOriginalInheritedSetBounds)(self, _cmd, bounds);
+}
+
+static void FLEXDInheritedLayoutSubviews(id self, SEL _cmd) {
+    ((void (*)(id, SEL))FLEXDOriginalInheritedLayoutSubviews)(self, _cmd);
+
+    UIView *view = (UIView *)self;
+    CGRect frame = view.frame;
+    if (FLEXDIsSources450Geometry(frame) && fabs(frame.size.height - 450.0) > 0.5) {
+        frame.size.height = 450.0;
+        ((void (*)(id, SEL, CGRect))FLEXDOriginalInheritedSetFrame)(
+            self, @selector(setFrame:), frame
+        );
+    }
+
+    CGRect bounds = view.bounds;
+    if (fabs(bounds.size.width - 358.0) < 3.0 &&
+        bounds.size.height > 245.0 && bounds.size.height < 460.0 &&
+        fabs(bounds.size.height - 450.0) > 0.5) {
+        bounds.size.height = 450.0;
+        ((void (*)(id, SEL, CGRect))FLEXDOriginalInheritedSetBounds)(
+            self, @selector(setBounds:), bounds
+        );
+    }
+}
+
+static void FLEXDUpdateSetFrame(id self, SEL _cmd, CGRect frame) {
+    frame = FLEXDForce450Frame(frame);
+
+    // Preserve the previous permanent page patch:
+    // UpdateCoalescingCollectionView 390 x ~701 -> 855.
+    if (fabs(frame.size.width - 390.0) < 3.0 &&
+        ((frame.size.height > 680.0 && frame.size.height < 720.0) ||
+         (frame.size.height > 845.0 && frame.size.height < 865.0))) {
+        frame.size.height = 855.0;
+    }
+
+    ((void (*)(id, SEL, CGRect))FLEXDOriginalUpdateSetFrame)(self, _cmd, frame);
+}
+
+static void FLEXDUpdateSetBounds(id self, SEL _cmd, CGRect bounds) {
+    bounds = FLEXDForce450Bounds(bounds);
+
+    if (fabs(bounds.size.width - 390.0) < 3.0 &&
+        ((bounds.size.height > 680.0 && bounds.size.height < 720.0) ||
+         (bounds.size.height > 845.0 && bounds.size.height < 865.0))) {
+        bounds.size.height = 855.0;
+    }
+
+    ((void (*)(id, SEL, CGRect))FLEXDOriginalUpdateSetBounds)(self, _cmd, bounds);
+}
+
+static void FLEXDUpdateLayoutSubviews(id self, SEL _cmd) {
+    ((void (*)(id, SEL))FLEXDOriginalUpdateLayoutSubviews)(self, _cmd);
+
+    UIView *view = (UIView *)self;
+    CGRect frame = view.frame;
+
+    if (FLEXDIsSources450Geometry(frame) && fabs(frame.size.height - 450.0) > 0.5) {
+        frame.size.height = 450.0;
+        ((void (*)(id, SEL, CGRect))FLEXDOriginalUpdateSetFrame)(
+            self, @selector(setFrame:), frame
+        );
+    }
+
+    if (fabs(frame.size.width - 390.0) < 3.0 &&
+        frame.size.height > 680.0 && frame.size.height < 865.0 &&
+        fabs(frame.size.height - 855.0) > 0.5) {
+        frame.size.height = 855.0;
+        ((void (*)(id, SEL, CGRect))FLEXDOriginalUpdateSetFrame)(
+            self, @selector(setFrame:), frame
+        );
+    }
+}
+
+static BOOL FLEXDInstallOverride(
+    Class cls,
+    SEL selector,
+    IMP newImp,
+    IMP *originalImpOut
+) {
+    if (!cls) return NO;
+
+    Method inherited = class_getInstanceMethod(cls, selector);
+    if (!inherited) return NO;
+
+    IMP original = method_getImplementation(inherited);
+    const char *types = method_getTypeEncoding(inherited);
+
+    // Add an override directly to this class so we do NOT accidentally
+    // modify UIView globally if the method is inherited.
+    if (class_addMethod(cls, selector, newImp, types)) {
+        *originalImpOut = original;
+        return YES;
+    }
+
+    Method own = class_getInstanceMethod(cls, selector);
+    if (!own) return NO;
+
+    *originalImpOut = method_getImplementation(own);
+    method_setImplementation(own, newImp);
+    return YES;
+}
+
+static BOOL FLEXDStrongSwiftUIPatchesInstalled = NO;
+
+static void FLEXDInstallStrongSwiftUIPatches(void) {
+    if (FLEXDStrongSwiftUIPatchesInstalled) return;
+
+    Class inheritedClass = NSClassFromString(@"SwiftUI._UIInheritedView");
+    Class updateClass = NSClassFromString(@"SwiftUI.UpdateCoalescingCollectionView");
+
+    if (!inheritedClass || !updateClass) {
+        NSLog(@"[FLEXDInject] SwiftUI target classes not ready yet");
+        return;
+    }
+
+    BOOL ok = YES;
+
+    ok &= FLEXDInstallOverride(
+        inheritedClass, @selector(setFrame:),
+        (IMP)FLEXDInheritedSetFrame, &FLEXDOriginalInheritedSetFrame
+    );
+    ok &= FLEXDInstallOverride(
+        inheritedClass, @selector(setBounds:),
+        (IMP)FLEXDInheritedSetBounds, &FLEXDOriginalInheritedSetBounds
+    );
+    ok &= FLEXDInstallOverride(
+        inheritedClass, @selector(layoutSubviews),
+        (IMP)FLEXDInheritedLayoutSubviews, &FLEXDOriginalInheritedLayoutSubviews
+    );
+
+    ok &= FLEXDInstallOverride(
+        updateClass, @selector(setFrame:),
+        (IMP)FLEXDUpdateSetFrame, &FLEXDOriginalUpdateSetFrame
+    );
+    ok &= FLEXDInstallOverride(
+        updateClass, @selector(setBounds:),
+        (IMP)FLEXDUpdateSetBounds, &FLEXDOriginalUpdateSetBounds
+    );
+    ok &= FLEXDInstallOverride(
+        updateClass, @selector(layoutSubviews),
+        (IMP)FLEXDUpdateLayoutSubviews, &FLEXDOriginalUpdateLayoutSubviews
+    );
+
+    if (ok) {
+        FLEXDStrongSwiftUIPatchesInstalled = YES;
+        NSLog(@"[FLEXDInject] STRONG SwiftUI patches installed: _UIInheritedView/UpdateCoalescing 257->450, UpdateCoalescing 701->855");
+    } else {
+        NSLog(@"[FLEXDInject] Failed to install one or more strong SwiftUI hooks");
+    }
+}
+
 static void FLEXDInstall(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
+        FLEXDInstallStrongSwiftUIPatches();
+
         FLEXDInstallFilesTablePatch();
 
         FLEXDInstallHeightPatch();
@@ -272,6 +469,7 @@ static void FLEXDInstall(void) {
                         object:nil
                          queue:NSOperationQueue.mainQueue
                     usingBlock:^(__unused NSNotification *note) {
+            FLEXDInstallStrongSwiftUIPatches();
             [trigger installOnAllWindows];
         }];
 

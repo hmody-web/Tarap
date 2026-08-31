@@ -56,3 +56,11 @@ V8 FROM USER V6:
 - Adds a stronger Files-page UITableView patch for {{0,205},{390,556}} -> height 700.
 - Enforces 700 in UITableView setFrame:, setBounds:, and after every layoutSubviews pass.
 - This is intended to survive scroll/Auto Layout attempts to restore 556.
+
+V9 STRONG SWIFTUI:
+- Built from V8 where UITableView 556->700 is confirmed working.
+- Preserves the strong UITableView 700 patch.
+- Adds DIRECT hooks on SwiftUI._UIInheritedView and SwiftUI.UpdateCoalescingCollectionView.
+- 358 x ~257 is forced to 450 using setFrame:, setBounds:, and layoutSubviews.
+- 390 x ~701 UpdateCoalescingCollectionView remains forced to 855.
+- Direct subclass overrides are used so SwiftUI cannot bypass the old UIView-level hook.

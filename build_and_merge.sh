@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
-OUT_IPA="Tarab_DeepFix_V6.ipa"
-OUT_ZIP="Tarab_DeepFix_V6.zip"
+OUT_IPA="Tarab_DeepFix_V6_1.ipa"
+OUT_ZIP="Tarab_DeepFix_V6_1.zip"
 REPORT_DIR="$ROOT/V6_Report"
 
 echo "==> Searching for ANY IPA"
@@ -89,11 +89,11 @@ cat > "$FW/Info.plist" <<'EOF'
 <plist version="1.0"><dict>
 <key>CFBundleExecutable</key><string>LayoutCleaner</string>
 <key>CFBundleIdentifier</key><string>com.alsaray.LayoutCleaner</string>
-<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+<key>CFBundleInfoDictionaryVersion</key><string>6.1</string>
 <key>CFBundleName</key><string>LayoutCleaner</string>
 <key>CFBundlePackageType</key><string>FMWK</string>
-<key>CFBundleShortVersionString</key><string>6.0</string>
-<key>CFBundleVersion</key><string>60</string>
+<key>CFBundleShortVersionString</key><string>6.1</string>
+<key>CFBundleVersion</key><string>61</string>
 <key>MinimumOSVersion</key><string>15.0</string>
 </dict></plist>
 EOF

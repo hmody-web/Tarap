@@ -118,7 +118,7 @@ static void ExtendAncestorChain(UIView *leaf, UIView *root) {
          Preserve the existing top edge, but force the bottom edge to reach
          the parent bottom. This is the key fix for old pre-iOS-26 tab layouts.
         */
-        CGFloat newHeight = CGRectGetHeight(pf) - CGRectGetMinY(f);
+        CGFloat newHeight = pf.size.height - f.origin.y;
         if (newHeight > f.size.height) {
             f.size.height = newHeight;
             v.frame = f;
@@ -157,9 +157,9 @@ static void ExtendSelectedPage(UITabBarController *tc) {
         ExtendAncestorChain(selected.view, tc.view);
 
         CGRect f = selected.view.frame;
-        CGFloat targetBottom = CGRectGetHeight(tc.view.bounds);
-        if (CGRectGetMaxY(f) < targetBottom) {
-            f.size.height = targetBottom - CGRectGetMinY(f);
+        CGFloat targetBottom = tc.view.bounds.size.height;
+        if ((f.origin.y + f.size.height) < targetBottom) {
+            f.size.height = targetBottom - f.origin.y;
             selected.view.frame = f;
         }
     }
@@ -176,15 +176,15 @@ static void ExtendSelectedPage(UITabBarController *tc) {
              reachable above the floating tab bar.
             */
             CGRect sf = scroll.frame;
-            CGFloat desiredBottom = CGRectGetHeight(content.view.bounds);
-            if (CGRectGetMaxY(sf) < desiredBottom) {
-                sf.size.height = desiredBottom - CGRectGetMinY(sf);
+            CGFloat desiredBottom = content.view.bounds.size.height;
+            if ((sf.origin.y + sf.size.height) < desiredBottom) {
+                sf.size.height = desiredBottom - sf.origin.y;
                 scroll.frame = sf;
             }
 
             UIEdgeInsets inset = scroll.contentInset;
             CGFloat safe = tc.view.safeAreaInsets.bottom;
-            CGFloat bar = CGRectGetHeight(tc.tabBar.bounds);
+            CGFloat bar = tc.tabBar.bounds.size.height;
             inset.bottom = MAX(bar + safe, inset.bottom);
             scroll.contentInset = inset;
         }

@@ -50,11 +50,7 @@ V6:
 - UpdateCoalescingCollectionView at 358x257 remains forced to 450.
 - Previous UpdateCoalescingCollectionView 390x701 -> 855 patch is preserved.
 
-V7 IMPORTANT FIX:
-- Verified V6 source: it only swizzled UIView setFrame: globally.
-- SwiftUI._UIInheritedView can override setFrame:/setBounds:, so it could bypass V6 and remain 257.
-- V7 directly hooks SwiftUI._UIInheritedView setFrame: AND setBounds:.
-- Any 358x~257 _UIInheritedView is forced to 358x450, regardless of origin.
-- Direct UpdateCoalescingCollectionView hooks are also added.
-- Existing 390x701 -> 855 modification is preserved.
-- Existing fleXD trigger and all previous V6 behavior are preserved.
+V7:
+- Preserves all V6 patches.
+- Files page UITableView matching frame {{0,205},{390,556}} is forced to height 700.
+- Enforcement occurs on every setFrame call so relayout/scroll cannot restore 556.

@@ -69,3 +69,12 @@ v5.1 build fix:
 - Restore TRBInstallHooks after free-overlay refactor.
 - No visual/layout/API changes.
 - Keeps X=16, Y=-157, W=358, H=160 and independent root-view overlay.
+
+v5.2:
+- X=16, Y=117.
+- Width remains 358.
+- Height changed from 160 to 180.
+- Removed the whole-banner horizontal flip.
+- Cover image and icon forced to identity transform.
+- Arabic title/description forced to proper RTL writing direction and right alignment.
+- Keeps the free independent overlay and all previous API/design behavior.

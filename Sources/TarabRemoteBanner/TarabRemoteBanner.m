@@ -4,8 +4,8 @@
 #import <objc/message.h>
 
 static NSString * const TRBAPIURL = @"https://scrptaty.com/apps/tarab/api.php";
-static const CGFloat TRBContainerHeight = 160.0;
-static const CGFloat TRBContentHeight = 160.0;
+static const CGFloat TRBContainerHeight = 180.0;
+static const CGFloat TRBContentHeight = 180.0;
 static const CGFloat TRBGap = 0.0;
 
 #pragma mark - Model
@@ -113,6 +113,7 @@ static const CGFloat TRBGap = 0.0;
     _coverView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     _coverView.contentMode = UIViewContentModeScaleAspectFill;
     _coverView.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
+    _coverView.transform = CGAffineTransformIdentity;
     _coverView.clipsToBounds = YES;
     [self addSubview:_coverView];
 
@@ -185,6 +186,7 @@ static const CGFloat TRBGap = 0.0;
     _iconView.translatesAutoresizingMaskIntoConstraints = NO;
     _iconView.contentMode = UIViewContentModeScaleAspectFill;
     _iconView.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
+    _iconView.transform = CGAffineTransformIdentity;
     _iconView.clipsToBounds = YES;
     _iconView.layer.cornerRadius = 17.0;
     _iconView.backgroundColor = [UIColor colorWithWhite:1 alpha:0.18];
@@ -198,6 +200,7 @@ static const CGFloat TRBGap = 0.0;
     _titleLabel.textAlignment = NSTextAlignmentRight;
     _titleLabel.numberOfLines = 1;
     _titleLabel.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
+    _titleLabel.transform = CGAffineTransformIdentity;
     [self addSubview:_titleLabel];
     [self bringSubviewToFront:_titleLabel];
 
@@ -208,6 +211,7 @@ static const CGFloat TRBGap = 0.0;
     _descLabel.textAlignment = NSTextAlignmentRight;
     _descLabel.numberOfLines = 2;
     _descLabel.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
+    _descLabel.transform = CGAffineTransformIdentity;
     [self addSubview:_descLabel];
     [self bringSubviewToFront:_descLabel];
 
@@ -266,15 +270,30 @@ static const CGFloat TRBGap = 0.0;
 - (void)configure:(TRBBannerItem *)item {
     NSString *title = item.title ?: @"";
     NSString *desc = item.descText ?: @"";
-    NSMutableParagraphStyle *rtl = [[NSMutableParagraphStyle alloc] init];
-    rtl.alignment = NSTextAlignmentRight;
-    rtl.baseWritingDirection = NSWritingDirectionRightToLeft;
-    self.titleLabel.attributedText = [[NSAttributedString alloc] initWithString:title attributes:@{
-        NSParagraphStyleAttributeName: rtl
-    }];
-    self.descLabel.attributedText = [[NSAttributedString alloc] initWithString:desc attributes:@{
-        NSParagraphStyleAttributeName: rtl
-    }];
+    NSMutableParagraphStyle *titleStyle = [[NSMutableParagraphStyle alloc] init];
+    titleStyle.alignment = NSTextAlignmentRight;
+    titleStyle.baseWritingDirection = NSWritingDirectionRightToLeft;
+
+    NSMutableParagraphStyle *descStyle = [[NSMutableParagraphStyle alloc] init];
+    descStyle.alignment = NSTextAlignmentRight;
+    descStyle.baseWritingDirection = NSWritingDirectionRightToLeft;
+
+    self.titleLabel.attributedText =
+        [[NSAttributedString alloc] initWithString:title attributes:@{
+            NSParagraphStyleAttributeName: titleStyle
+        }];
+
+    self.descLabel.attributedText =
+        [[NSAttributedString alloc] initWithString:desc attributes:@{
+            NSParagraphStyleAttributeName: descStyle
+        }];
+
+    self.titleLabel.textAlignment = NSTextAlignmentRight;
+    self.descLabel.textAlignment = NSTextAlignmentRight;
+    self.titleLabel.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
+    self.descLabel.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
+    self.titleLabel.transform = CGAffineTransformIdentity;
+    self.descLabel.transform = CGAffineTransformIdentity;
     self.downloadURL = item.downloadURL ?: @"";
 
     self.coverView.image = nil;
@@ -317,13 +336,13 @@ static const CGFloat TRBGap = 0.0;
 
     self.backgroundColor = UIColor.clearColor;
     self.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
-    // The host SwiftUI hierarchy is horizontally mirrored. Counter it once here.
-    self.transform = CGAffineTransformMakeScale(-1.0, 1.0);
+    self.transform = CGAffineTransformIdentity;
 
     _scroll = [[UIScrollView alloc] initWithFrame:CGRectZero];
     _scroll.translatesAutoresizingMaskIntoConstraints = NO;
     _scroll.pagingEnabled = YES;
     _scroll.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
+    _scroll.transform = CGAffineTransformIdentity;
     _scroll.showsHorizontalScrollIndicator = NO;
     _scroll.delegate = self;
     _scroll.clipsToBounds = YES;
@@ -600,9 +619,9 @@ static void TRBInstallBannerIntoController(UIViewController *vc) {
 
     // Independent overlay. It does not belong to any list or scroll view.
     const CGFloat x = 16.0;
-    const CGFloat y = -157.0;
+    const CGFloat y = 117.0;
     const CGFloat width = 358.0;
-    const CGFloat height = 160.0;
+    const CGFloat height = 180.0;
 
     TRBBannerCarousel *carousel = [[TRBBannerCarousel alloc]
         initWithFrame:CGRectMake(x, y, width, height)];
@@ -646,9 +665,9 @@ static void TRBPatchedViewDidLayout(UIViewController *self, SEL _cmd) {
     if (carousel && carousel.superview) {
         // FREE coordinates: edit these four constants only.
         const CGFloat TRBFreeX = 16.0;
-        const CGFloat TRBFreeY = -157.0;
+        const CGFloat TRBFreeY = 117.0;
         const CGFloat TRBFreeWidth = 358.0;
-        const CGFloat TRBFreeHeight = 160.0;
+        const CGFloat TRBFreeHeight = 180.0;
 
         carousel.frame = CGRectMake(TRBFreeX, TRBFreeY, TRBFreeWidth, TRBFreeHeight);
         carousel.layer.zPosition = 9999999.0;

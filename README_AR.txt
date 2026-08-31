@@ -37,3 +37,9 @@ V4:
 - Detects original frame around {{0,0},{358,257}}.
 - Forces height to 360 on every setFrame call, including after scroll/layout refresh.
 - fleXD remains available with the 3-finger long-press trigger.
+
+V5:
+- Force all matching UpdateCoalescingCollectionView frames around 358x257 to height 450.
+- Restore the previous permanent 390x701 -> 855 patch.
+- Both are enforced on every setFrame call, so SwiftUI scroll/layout should not restore old heights.
+- fleXD remains available with the 3-finger long-press trigger.

@@ -1,18 +1,16 @@
-SAFE V3.1 - FIXED BUILD
+LayoutCleaner ANY IPA
 
-الإصلاحات:
-- إزالة CGRectGetMinY / CGRectGetMaxY التي سببت Undefined symbols.
-- استخدام حساب مباشر للـ CGRect بدون أي رموز إضافية.
-- استبدال scrollIndicatorInsets القديم بـ
-  verticalScrollIndicatorInsets / horizontalScrollIndicatorInsets.
-- نفس وظيفة V3 بدون تغيير:
-  * محتوى الصفحة يمتد خلف الـ Bottom Tab Bar.
-  * الـ Tab Bar يبقى شفاف/زجاجي.
-  * BannerHeightManager يبقى مصفر.
-  * لا يوجد UIViewController hook العام القديم.
+هذه النسخة لا تعتمد على اسم ملف الـ IPA إطلاقاً.
 
-ضع IPA الأصلي المدموج داخل نفس الريبو.
-الناتج:
-Tarab_5.11_LayoutCleaner_SAFE_V3_1.ipa
+السكربت:
+- يبحث عن أي ملف ينتهي بـ .ipa داخل الريبو.
+- يأخذ أول IPA يجده.
+- إذا LayoutCleaner.framework موجود، يستبدله.
+- إذا LC_LOAD_DYLIB موجود، لا يعدل Mach-O.
+- إذا غير موجود، يضيفه.
+- يخرج ملف:
+  Tarab_5.11_LayoutCleaner_ANY_IPA.ipa
 
-ثم أعد توقيعه قبل التثبيت.
+مهم:
+إذا كان عندك أكثر من IPA داخل الريبو، سيأخذ أول واحد يجده.
+الأفضل تترك IPA واحد فقط لتجنب اختيار ملف غير مقصود.

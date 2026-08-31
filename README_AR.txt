@@ -1,27 +1,9 @@
-LayoutCleaner SAFE V2
-
-سبب التغيير:
-النسخة السابقة كانت تعمل Hook عام على UIViewController وتفحص شجرة الـViews.
-هذا ممكن يسبب crash عند الإقلاع.
-
-SAFE V2:
-- لا تعمل Hook على UIViewController نهائياً.
-- تستهدف BannerHeightManager الموجود داخل Tarab فقط.
-- تجبر:
-  bannerHeight = 0
-  inlineBannerHeight = 0
-  bannerBottomPadding = 0 (إن وجد)
-  shouldShowBanner = false (إن وجد)
-- تجعل UITabBar شفاف باستخدام UITabBarAppearance.
-- تبقي ProfileOverlay.framework وPortraitOverlay.framework بدون تغيير.
-
-مهم:
-ضع IPA الأصلي المدموج:
-Tarab_5.11_ProfileOverlay_Merged.ipa
-مع هذه الملفات في نفس GitHub repo.
-
-شغل Codemagic.
-الناتج:
-Tarab_5.11_LayoutCleaner_SAFE_V2.ipa
-
-ثم وقعه وثبته.
+SAFE V3
+- يبقي الـ Bottom Tab Bar الزجاجي.
+- يجعل صفحة التطبيق تمتد خلف الـ Tab Bar حتى يظهر محتوى الصفحة وراء الزجاج.
+- يزيل background/effect الخاص بالـ UITabBar.
+- يصفر bannerHeight و inlineBannerHeight عبر BannerHeightManager.
+- لا يستخدم UIViewController hook العام الذي سبب crash في V1.
+- استخدم IPA الأصلي المدموج ProfileOverlay كـ input، وليس V2.
+الناتج: Tarab_5.11_LayoutCleaner_SAFE_V3.ipa
+بعد البناء: أعد توقيع IPA ثم ثبته.

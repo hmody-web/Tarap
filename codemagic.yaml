@@ -1,18 +1,12 @@
 workflows:
-  layout-cleaner-safe-v2:
-    name: Build LayoutCleaner SAFE V2
+  layout-cleaner-v3:
+    name: Build LayoutCleaner SAFE V3
     instance_type: mac_mini_m2
     max_build_duration: 30
     scripts:
-      - name: Show repository files
-        script: |
-          pwd
-          find . -maxdepth 3 -type f | sort
-
-      - name: Build SAFE V2
+      - name: Build SAFE V3
         script: |
           chmod +x build_and_merge.sh inject_dylib.py
           ./build_and_merge.sh
-
     artifacts:
-      - "Tarab_5.11_LayoutCleaner_SAFE_V2.ipa"
+      - "Tarab_5.11_LayoutCleaner_SAFE_V3.ipa"

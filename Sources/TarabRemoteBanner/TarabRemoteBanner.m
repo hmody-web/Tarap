@@ -84,6 +84,8 @@ static const CGFloat TRBGap = 0.0;
 @property(nonatomic, strong) UIImageView *coverView;
 @property(nonatomic, strong) UIView *shadeView;
 @property(nonatomic, strong) UIImageView *iconView;
+@property(nonatomic, strong) CALayer *iconShadowLayer;
+@property(nonatomic, strong) CALayer *breezeLayer;
 @property(nonatomic, strong) UILabel *titleLabel;
 @property(nonatomic, strong) UILabel *descLabel;
 @property(nonatomic, strong) UIButton *downloadButton;
@@ -99,7 +101,8 @@ static const CGFloat TRBGap = 0.0;
 
     self.clipsToBounds = YES;
     self.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
-    self.layer.cornerRadius = 16.0;
+    self.layer.cornerRadius = 18.0;
+    if (@available(iOS 13.0, *)) self.layer.cornerCurve = kCACornerCurveContinuous;
     if (@available(iOS 13.0, *)) {
         self.backgroundColor = UIColor.secondarySystemBackgroundColor;
     } else {
@@ -128,6 +131,56 @@ static const CGFloat TRBGap = 0.0;
     [_shadeView.layer addSublayer:gradient];
     [self addSubview:_shadeView];
 
+    // Subtle "breeze" / bubbles, similar to the native banner decoration.
+    _breezeLayer = [CALayer layer];
+    _breezeLayer.frame = self.bounds;
+    _breezeLayer.masksToBounds = YES;
+    [self.layer addSublayer:_breezeLayer];
+
+    NSArray<NSValue *> *bubblePoints = @[
+        [NSValue valueWithCGPoint:CGPointMake(28, 30)],
+        [NSValue valueWithCGPoint:CGPointMake(72, 58)],
+        [NSValue valueWithCGPoint:CGPointMake(302, 34)],
+        [NSValue valueWithCGPoint:CGPointMake(330, 76)],
+        [NSValue valueWithCGPoint:CGPointMake(245, 112)],
+        [NSValue valueWithCGPoint:CGPointMake(116, 126)]
+    ];
+    NSArray<NSNumber *> *bubbleSizes = @[@7,@4,@6,@3,@5,@4];
+    for (NSUInteger i = 0; i < bubblePoints.count; i++) {
+        CGPoint p = bubblePoints[i].CGPointValue;
+        CGFloat d = bubbleSizes[i].doubleValue;
+        CAShapeLayer *bubble = [CAShapeLayer layer];
+        bubble.frame = CGRectMake(p.x, p.y, d, d);
+        bubble.path = [UIBezierPath bezierPathWithOvalInRect:CGRectMake(0, 0, d, d)].CGPath;
+        bubble.fillColor = [UIColor colorWithWhite:1.0 alpha:0.16].CGColor;
+        [_breezeLayer addSublayer:bubble];
+
+        CABasicAnimation *floatAnim = [CABasicAnimation animationWithKeyPath:@"transform.translation.y"];
+        floatAnim.fromValue = @0;
+        floatAnim.toValue = @(-10.0 - (CGFloat)i);
+        floatAnim.duration = 2.8 + (CGFloat)i * 0.32;
+        floatAnim.autoreverses = YES;
+        floatAnim.repeatCount = HUGE_VALF;
+        floatAnim.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+        [bubble addAnimation:floatAnim forKey:@"trb.breeze"];
+
+        CABasicAnimation *fadeAnim = [CABasicAnimation animationWithKeyPath:@"opacity"];
+        fadeAnim.fromValue = @0.35;
+        fadeAnim.toValue = @0.9;
+        fadeAnim.duration = 2.2 + (CGFloat)i * 0.25;
+        fadeAnim.autoreverses = YES;
+        fadeAnim.repeatCount = HUGE_VALF;
+        [bubble addAnimation:fadeAnim forKey:@"trb.fade"];
+    }
+
+    _iconShadowLayer = [CALayer layer];
+    _iconShadowLayer.backgroundColor = UIColor.clearColor.CGColor;
+    _iconShadowLayer.shadowColor = UIColor.blackColor.CGColor;
+    _iconShadowLayer.shadowOpacity = 0.28;
+    _iconShadowLayer.shadowRadius = 7.0;
+    _iconShadowLayer.shadowOffset = CGSizeMake(0, 3);
+    [self.layer addSublayer:_iconShadowLayer];
+
     _iconView = [[UIImageView alloc] initWithFrame:CGRectZero];
     _iconView.translatesAutoresizingMaskIntoConstraints = NO;
     _iconView.contentMode = UIViewContentModeScaleAspectFill;
@@ -136,6 +189,7 @@ static const CGFloat TRBGap = 0.0;
     _iconView.layer.cornerRadius = 17.0;
     _iconView.backgroundColor = [UIColor colorWithWhite:1 alpha:0.18];
     [self addSubview:_iconView];
+    [self bringSubviewToFront:_iconView];
 
     _titleLabel = [[UILabel alloc] initWithFrame:CGRectZero];
     _titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
@@ -145,6 +199,7 @@ static const CGFloat TRBGap = 0.0;
     _titleLabel.numberOfLines = 1;
     _titleLabel.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
     [self addSubview:_titleLabel];
+    [self bringSubviewToFront:_titleLabel];
 
     _descLabel = [[UILabel alloc] initWithFrame:CGRectZero];
     _descLabel.translatesAutoresizingMaskIntoConstraints = NO;
@@ -154,6 +209,7 @@ static const CGFloat TRBGap = 0.0;
     _descLabel.numberOfLines = 2;
     _descLabel.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
     [self addSubview:_descLabel];
+    [self bringSubviewToFront:_descLabel];
 
     _downloadButton = [UIButton buttonWithType:UIButtonTypeSystem];
     _downloadButton.translatesAutoresizingMaskIntoConstraints = NO;
@@ -161,11 +217,13 @@ static const CGFloat TRBGap = 0.0;
     [_downloadButton setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
     _downloadButton.titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightSemibold];
     _downloadButton.backgroundColor = [UIColor colorWithWhite:1 alpha:0.26];
-    _downloadButton.layer.cornerRadius = 23.0;
+    _downloadButton.layer.cornerRadius = 21.0;
+    if (@available(iOS 13.0, *)) _downloadButton.layer.cornerCurve = kCACornerCurveContinuous;
     _downloadButton.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.12].CGColor;
     _downloadButton.layer.borderWidth = 1.0;
     [_downloadButton addTarget:self action:@selector(openDownload) forControlEvents:UIControlEventTouchUpInside];
     [self addSubview:_downloadButton];
+    [self bringSubviewToFront:_downloadButton];
 
     [NSLayoutConstraint activateConstraints:@[
         [_iconView.topAnchor constraintEqualToAnchor:self.topAnchor constant:10],
@@ -197,11 +255,26 @@ static const CGFloat TRBGap = 0.0;
             layer.frame = self.shadeView.bounds;
         }
     }
+    self.breezeLayer.frame = self.bounds;
+    CGRect iconFrame = self.iconView.frame;
+    self.iconShadowLayer.frame = iconFrame;
+    self.iconShadowLayer.shadowPath =
+        [UIBezierPath bezierPathWithRoundedRect:CGRectMake(0, 0, iconFrame.size.width, iconFrame.size.height)
+                                   cornerRadius:17.0].CGPath;
 }
 
 - (void)configure:(TRBBannerItem *)item {
-    self.titleLabel.text = item.title ?: @"";
-    self.descLabel.text = item.descText ?: @"";
+    NSString *title = item.title ?: @"";
+    NSString *desc = item.descText ?: @"";
+    NSMutableParagraphStyle *rtl = [[NSMutableParagraphStyle alloc] init];
+    rtl.alignment = NSTextAlignmentRight;
+    rtl.baseWritingDirection = NSWritingDirectionRightToLeft;
+    self.titleLabel.attributedText = [[NSAttributedString alloc] initWithString:title attributes:@{
+        NSParagraphStyleAttributeName: rtl
+    }];
+    self.descLabel.attributedText = [[NSAttributedString alloc] initWithString:desc attributes:@{
+        NSParagraphStyleAttributeName: rtl
+    }];
     self.downloadURL = item.downloadURL ?: @"";
 
     self.coverView.image = nil;
@@ -244,6 +317,8 @@ static const CGFloat TRBGap = 0.0;
 
     self.backgroundColor = UIColor.clearColor;
     self.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
+    // The host SwiftUI hierarchy is horizontally mirrored. Counter it once here.
+    self.transform = CGAffineTransformMakeScale(-1.0, 1.0);
 
     _scroll = [[UIScrollView alloc] initWithFrame:CGRectZero];
     _scroll.translatesAutoresizingMaskIntoConstraints = NO;
@@ -252,12 +327,16 @@ static const CGFloat TRBGap = 0.0;
     _scroll.showsHorizontalScrollIndicator = NO;
     _scroll.delegate = self;
     _scroll.clipsToBounds = YES;
+    _scroll.decelerationRate = UIScrollViewDecelerationRateFast;
+    _scroll.directionalLockEnabled = YES;
+    _scroll.alwaysBounceHorizontal = YES;
     [self addSubview:_scroll];
 
     _dots = [[UIPageControl alloc] initWithFrame:CGRectZero];
     _dots.translatesAutoresizingMaskIntoConstraints = NO;
     _dots.hidesForSinglePage = YES;
     _dots.userInteractionEnabled = NO;
+    _dots.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     if (@available(iOS 14.0, *)) {
         _dots.backgroundStyle = UIPageControlBackgroundStyleMinimal;
     }
@@ -269,9 +348,9 @@ static const CGFloat TRBGap = 0.0;
         [_scroll.trailingAnchor constraintEqualToAnchor:self.trailingAnchor],
         [_scroll.heightAnchor constraintEqualToConstant:TRBContentHeight],
 
-        [_dots.topAnchor constraintEqualToAnchor:_scroll.bottomAnchor constant:1],
         [_dots.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
-        [_dots.heightAnchor constraintEqualToConstant:24],
+        [_dots.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-2],
+        [_dots.heightAnchor constraintEqualToConstant:18],
     ]];
 
     return self;
@@ -532,7 +611,7 @@ static void TRBInstallBannerIntoController(UIViewController *vc) {
     }
 
     // Top visible content coordinate. This intentionally overlays the native banner.
-    CGFloat y = scroll.contentOffset.y + adjusted.top + 12.0;
+    CGFloat y = -325.0;
 
     TRBBannerCarousel *carousel = [[TRBBannerCarousel alloc]
         initWithFrame:CGRectMake(x, y, width, 160.0)];
@@ -568,6 +647,7 @@ static void TRBPatchedViewDidLayout(UIViewController *self, SEL _cmd) {
         CGFloat x = (scroll.bounds.size.width - width) / 2.0;
         CGRect f = carousel.frame;
         f.origin.x = x;
+        f.origin.y = -325.0;
         f.size.width = 358.0;
         f.size.height = 160.0;
         carousel.frame = f;

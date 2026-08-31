@@ -4,9 +4,9 @@
 #import <objc/message.h>
 
 static NSString * const TRBAPIURL = @"https://scrptaty.com/apps/tarab/api.php";
-static const CGFloat TRBContainerHeight = 206.0;
-static const CGFloat TRBContentHeight = 178.0;
-static const CGFloat TRBGap = 12.0;
+static const CGFloat TRBContainerHeight = 160.0;
+static const CGFloat TRBContentHeight = 160.0;
+static const CGFloat TRBGap = 0.0;
 
 #pragma mark - Model
 
@@ -98,6 +98,7 @@ static const CGFloat TRBGap = 12.0;
     if (!self) return nil;
 
     self.clipsToBounds = YES;
+    self.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     self.layer.cornerRadius = 16.0;
     if (@available(iOS 13.0, *)) {
         self.backgroundColor = UIColor.secondarySystemBackgroundColor;
@@ -108,6 +109,7 @@ static const CGFloat TRBGap = 12.0;
     _coverView = [[UIImageView alloc] initWithFrame:self.bounds];
     _coverView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     _coverView.contentMode = UIViewContentModeScaleAspectFill;
+    _coverView.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     _coverView.clipsToBounds = YES;
     [self addSubview:_coverView];
 
@@ -129,6 +131,7 @@ static const CGFloat TRBGap = 12.0;
     _iconView = [[UIImageView alloc] initWithFrame:CGRectZero];
     _iconView.translatesAutoresizingMaskIntoConstraints = NO;
     _iconView.contentMode = UIViewContentModeScaleAspectFill;
+    _iconView.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     _iconView.clipsToBounds = YES;
     _iconView.layer.cornerRadius = 17.0;
     _iconView.backgroundColor = [UIColor colorWithWhite:1 alpha:0.18];
@@ -165,23 +168,23 @@ static const CGFloat TRBGap = 12.0;
     [self addSubview:_downloadButton];
 
     [NSLayoutConstraint activateConstraints:@[
-        [_iconView.topAnchor constraintEqualToAnchor:self.topAnchor constant:16],
+        [_iconView.topAnchor constraintEqualToAnchor:self.topAnchor constant:10],
         [_iconView.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
-        [_iconView.widthAnchor constraintEqualToConstant:66],
-        [_iconView.heightAnchor constraintEqualToConstant:66],
+        [_iconView.widthAnchor constraintEqualToConstant:58],
+        [_iconView.heightAnchor constraintEqualToConstant:58],
 
         [_titleLabel.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-18],
         [_titleLabel.bottomAnchor constraintEqualToAnchor:_descLabel.topAnchor constant:-2],
         [_titleLabel.leadingAnchor constraintGreaterThanOrEqualToAnchor:_downloadButton.trailingAnchor constant:12],
 
         [_descLabel.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-18],
-        [_descLabel.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-17],
+        [_descLabel.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-12],
         [_descLabel.widthAnchor constraintLessThanOrEqualToAnchor:self.widthAnchor multiplier:0.62],
 
         [_downloadButton.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:18],
-        [_downloadButton.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-18],
-        [_downloadButton.widthAnchor constraintEqualToConstant:116],
-        [_downloadButton.heightAnchor constraintEqualToConstant:46],
+        [_downloadButton.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-12],
+        [_downloadButton.widthAnchor constraintEqualToConstant:96],
+        [_downloadButton.heightAnchor constraintEqualToConstant:42],
     ]];
 
     return self;
@@ -240,10 +243,12 @@ static const CGFloat TRBGap = 12.0;
     if (!self) return nil;
 
     self.backgroundColor = UIColor.clearColor;
+    self.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
 
     _scroll = [[UIScrollView alloc] initWithFrame:CGRectZero];
     _scroll.translatesAutoresizingMaskIntoConstraints = NO;
     _scroll.pagingEnabled = YES;
+    _scroll.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     _scroll.showsHorizontalScrollIndicator = NO;
     _scroll.delegate = self;
     _scroll.clipsToBounds = YES;
@@ -514,40 +519,30 @@ static void TRBInstallBannerIntoController(UIViewController *vc) {
     UIScrollView *scroll = TRBFindMainScrollView(vc.view);
     if (!scroll) return;
 
-    // Preserve the exact original inset once.
-    NSValue *savedValue = objc_getAssociatedObject(scroll, &kTRBOriginalInsetKey);
-    UIEdgeInsets originalInset = savedValue ? savedValue.UIEdgeInsetsValue : scroll.contentInset;
-
-    if (!savedValue) {
-        objc_setAssociatedObject(
-            scroll,
-            &kTRBOriginalInsetKey,
-            [NSValue valueWithUIEdgeInsets:originalInset],
-            OBJC_ASSOCIATION_RETAIN_NONATOMIC
-        );
-    }
-
-    CGFloat extra = TRBContainerHeight + TRBGap;
-    UIEdgeInsets newInset = originalInset;
-    newInset.top += extra;
-    scroll.contentInset = newInset;
-
-    if (@available(iOS 11.0, *)) {
-        // Do not modify automatic behavior; only contentInset is changed.
-    }
-
-    CGFloat width = MIN(358.0, MAX(280.0, scroll.bounds.size.width - 32.0));
+    // Overlay only: do NOT change contentInset/contentSize.
+    // Place directly over the original top banner region.
+    CGFloat width = 358.0;
     CGFloat x = (scroll.bounds.size.width - width) / 2.0;
-    CGFloat y = -newInset.top + originalInset.top + 4.0;
+
+    UIEdgeInsets adjusted = UIEdgeInsetsZero;
+    if (@available(iOS 11.0, *)) {
+        adjusted = scroll.adjustedContentInset;
+    } else {
+        adjusted = scroll.contentInset;
+    }
+
+    // Top visible content coordinate. This intentionally overlays the native banner.
+    CGFloat y = scroll.contentOffset.y + adjusted.top + 12.0;
 
     TRBBannerCarousel *carousel = [[TRBBannerCarousel alloc]
-        initWithFrame:CGRectMake(x, y, width, TRBContainerHeight)];
-    carousel.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+        initWithFrame:CGRectMake(x, y, width, 160.0)];
+    carousel.autoresizingMask = UIViewAutoresizingNone;
     carousel.hidden = YES;
-    carousel.tag = 0x54524231; // TRB1
+    carousel.tag = 0x54524231;
+    carousel.layer.zPosition = 99999.0;
 
     [scroll addSubview:carousel];
-    [scroll sendSubviewToBack:carousel];
+    [scroll bringSubviewToFront:carousel];
 
     objc_setAssociatedObject(vc, &kTRBCarouselKey, carousel, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     objc_setAssociatedObject(vc.view, &kTRBTargetScrollKey, scroll, OBJC_ASSOCIATION_ASSIGN);
@@ -569,13 +564,15 @@ static void TRBPatchedViewDidLayout(UIViewController *self, SEL _cmd) {
     TRBBannerCarousel *carousel = objc_getAssociatedObject(self, &kTRBCarouselKey);
     if (carousel && carousel.superview) {
         UIScrollView *scroll = (UIScrollView *)carousel.superview;
-        CGFloat width = MIN(358.0, MAX(280.0, scroll.bounds.size.width - 32.0));
+        CGFloat width = 358.0;
         CGFloat x = (scroll.bounds.size.width - width) / 2.0;
         CGRect f = carousel.frame;
         f.origin.x = x;
-        f.size.width = width;
-        f.size.height = TRBContainerHeight;
+        f.size.width = 358.0;
+        f.size.height = 160.0;
         carousel.frame = f;
+        carousel.layer.zPosition = 99999.0;
+        [scroll bringSubviewToFront:carousel];
     } else {
         dispatch_async(dispatch_get_main_queue(), ^{
             TRBInstallBannerIntoController(self);

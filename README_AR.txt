@@ -1,14 +1,14 @@
-Tarab Runtime Diagnostic V9.3.1
+Tarab Runtime Diagnostic V9.3.2
 
-إصلاحات هذه النسخة:
-- إصلاح خطأ linker الخاص بـ CGRectZero.
-- استخدام os_log بدل NSLog.
-- تفعيل %{public} بشكل صحيح حتى تظهر أسماء الكلاسات بدل <private>.
-- الإبقاء على طباعة frame / safeArea / backgroundColor بأرقام مباشرة.
+إصلاح هذه النسخة:
+- إصلاح os_log format strings.
+- استخدام C string literals بدل Objective-C @"...".
+- الإبقاء على %{public}s لأسماء الكلاسات.
+- الإبقاء على frame / safeArea / backgroundColor كأرقام مباشرة.
+- إصلاح CGRectZero من النسخة السابقة.
 
 مهم:
-ضع IPA واحد فقط داخل المشروع قبل تشغيل Codemagic.
-يفضل حذف أي IPA قديم مثل V9.2 حتى لا يختاره السكربت بالخطأ.
+خلي IPA واحد فقط داخل الريبو قبل البناء.
 
 بعد التثبيت:
 1) افتح الأقسام الأربعة.
@@ -20,4 +20,4 @@ Tarab Runtime Diagnostic V9.3.1
 [TarabBottom]
 
 الناتج:
-Tarab_RuntimeDiag_V9_3_1.zip
+Tarab_RuntimeDiag_V9_3_2.zip

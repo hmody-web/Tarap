@@ -48,3 +48,10 @@ Tarab_RemoteBanner_Injected.ipa
 - تحسين السحب/deceleration والحواف.
 - نقاط الصفحات داخل البنر.
 - فقاعات/نسيم برمجية خفيفة متحركة فوق الخلفية.
+
+تعديل v4:
+- Y ثابت = -157.
+- رفع zPosition للبنر إلى 9999999.
+- إعادة bringSubviewToFront بعد كل layout.
+- رفع فرع الـUIScrollView داخل hierarchy حتى لا تغطيه SwiftUI sibling overlays.
+- الحفاظ على باقي تعديلات v3 كاملة.

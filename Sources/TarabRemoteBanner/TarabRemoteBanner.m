@@ -499,6 +499,43 @@ static const CGFloat TRBGap = 0.0;
 
 @end
 
+
+static void TRBForceFrontmost(UIViewController *vc, TRBBannerCarousel *carousel) {
+    if (!carousel || !carousel.superview) return;
+
+    carousel.layer.zPosition = 9999999.0;
+
+    UIView *superview = carousel.superview;
+    [superview bringSubviewToFront:carousel];
+
+    // Reassert on the main thread after the host hierarchy finishes its own layout.
+    dispatch_async(dispatch_get_main_queue(), ^{
+        carousel.layer.zPosition = 9999999.0;
+        if (carousel.superview) {
+            [carousel.superview bringSubviewToFront:carousel];
+        }
+
+        // Also move the scroll container forward inside its direct parent when safe.
+        // This avoids SwiftUI sibling overlays visually covering our injected banner.
+        UIView *scrollHost = carousel.superview;
+        if (scrollHost.superview) {
+            [scrollHost.superview bringSubviewToFront:scrollHost];
+        }
+
+        // Finally, keep the whole branch visible above normal sibling content.
+        UIView *branch = scrollHost;
+        NSUInteger hops = 0;
+        while (branch.superview && branch.superview != vc.view && hops < 4) {
+            branch.layer.zPosition = MAX(branch.layer.zPosition, 999999.0);
+            [branch.superview bringSubviewToFront:branch];
+            branch = branch.superview;
+            hops++;
+        }
+
+        carousel.layer.zPosition = 9999999.0;
+    });
+}
+
 #pragma mark - Installation / page targeting
 
 static char kTRBCarouselKey;
@@ -611,17 +648,18 @@ static void TRBInstallBannerIntoController(UIViewController *vc) {
     }
 
     // Top visible content coordinate. This intentionally overlays the native banner.
-    CGFloat y = -325.0;
+    CGFloat y = -157.0;
 
     TRBBannerCarousel *carousel = [[TRBBannerCarousel alloc]
         initWithFrame:CGRectMake(x, y, width, 160.0)];
     carousel.autoresizingMask = UIViewAutoresizingNone;
     carousel.hidden = YES;
     carousel.tag = 0x54524231;
-    carousel.layer.zPosition = 99999.0;
+    carousel.layer.zPosition = 9999999.0;
 
     [scroll addSubview:carousel];
     [scroll bringSubviewToFront:carousel];
+    TRBForceFrontmost(vc, carousel);
 
     objc_setAssociatedObject(vc, &kTRBCarouselKey, carousel, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     objc_setAssociatedObject(vc.view, &kTRBTargetScrollKey, scroll, OBJC_ASSOCIATION_ASSIGN);
@@ -647,12 +685,13 @@ static void TRBPatchedViewDidLayout(UIViewController *self, SEL _cmd) {
         CGFloat x = (scroll.bounds.size.width - width) / 2.0;
         CGRect f = carousel.frame;
         f.origin.x = x;
-        f.origin.y = -325.0;
+        f.origin.y = -157.0;
         f.size.width = 358.0;
         f.size.height = 160.0;
         carousel.frame = f;
-        carousel.layer.zPosition = 99999.0;
+        carousel.layer.zPosition = 9999999.0;
         [scroll bringSubviewToFront:carousel];
+        TRBForceFrontmost(self, carousel);
     } else {
         dispatch_async(dispatch_get_main_queue(), ^{
             TRBInstallBannerIntoController(self);

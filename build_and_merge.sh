@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
-OUT_IPA="Tarab_RuntimeDiag_V9.ipa"
-OUT_ZIP="Tarab_RuntimeDiag_V9.zip"
+OUT_IPA="Tarab_RuntimeDiag_V9_2.ipa"
+OUT_ZIP="Tarab_RuntimeDiag_V9_2.zip"
 
 echo "==> Searching for ANY IPA"
 
@@ -20,7 +20,7 @@ fi
 
 echo "✅ Input: $INPUT"
 
-WORK="$ROOT/work_v9"
+WORK="$ROOT/work_v9_2"
 rm -rf "$WORK"
 mkdir -p "$WORK"
 cd "$WORK"
@@ -38,7 +38,7 @@ EXEC="$APP/$EXEC_NAME"
 FW="$APP/Frameworks/RuntimeDiag.framework"
 SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
 
-echo "==> Building RuntimeDiag V9"
+echo "==> Building RuntimeDiag V9.2"
 
 rm -rf "$FW"
 mkdir -p "$FW"
@@ -67,8 +67,8 @@ cat > "$FW/Info.plist" <<'EOF'
 <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
 <key>CFBundleName</key><string>RuntimeDiag</string>
 <key>CFBundlePackageType</key><string>FMWK</string>
-<key>CFBundleShortVersionString</key><string>9.0</string>
-<key>CFBundleVersion</key><string>90</string>
+<key>CFBundleShortVersionString</key><string>9.2</string>
+<key>CFBundleVersion</key><string>92</string>
 <key>MinimumOSVersion</key><string>15.0</string>
 </dict></plist>
 EOF

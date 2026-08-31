@@ -33,37 +33,59 @@ static NSString *InsetsDesc(UIEdgeInsets i) {
     ];
 }
 
-static void AppendLine(NSMutableString *out, NSString *line) {
-    [out appendString:line ?: @""];
-    [out appendString:@"\n"];
+static BOOL InterestingClass(UIView *v) {
+    if (!v) return NO;
+
+    NSString *n = NSStringFromClass(v.class);
+
+    NSArray *keys = @[
+        @"Tab",
+        @"Bar",
+        @"Background",
+        @"Backdrop",
+        @"Container",
+        @"VisualEffect",
+        @"Scroll",
+        @"Collection",
+        @"Table",
+        @"Transition",
+        @"Wrapper",
+        @"Content",
+        @"Extension"
+    ];
+
+    for (NSString *k in keys) {
+        if ([n rangeOfString:k options:NSCaseInsensitiveSearch].location != NSNotFound) {
+            return YES;
+        }
+    }
+
+    return NO;
 }
 
-static void DumpViewTree(UIView *v,
-                         UIWindow *window,
-                         NSMutableString *out,
-                         NSInteger depth,
-                         CGFloat focusTop) {
-    if (!v || !window || depth > 12) return;
+static void DumpBottomViews(UIView *v,
+                            UIWindow *window,
+                            CGFloat focusTop,
+                            NSInteger depth) {
+    if (!v || !window || depth > 14) return;
 
-    CGRect wr = [v convertRect:v.bounds toView:window];
-    CGFloat maxY = wr.origin.y + wr.size.height;
+    CGRect r = [v convertRect:v.bounds toView:window];
+    CGFloat maxY = r.origin.y + r.size.height;
 
-    BOOL intersectsBottomZone = maxY >= focusTop;
+    BOOL intersectsBottom = maxY >= focusTop;
+    BOOL wide = r.size.width >= window.bounds.size.width * 0.70;
+    BOOL interesting = InterestingClass(v);
 
-    if (intersectsBottomZone) {
-        NSString *indent = [@"" stringByPaddingToLength:(NSUInteger)(depth*2)
-                                              withString:@" "
-                                         startingAtIndex:0];
-
+    if (intersectsBottom && (wide || interesting)) {
         NSString *cls = NSStringFromClass(v.class);
         NSString *sup = v.superview ? NSStringFromClass(v.superview.class) : @"nil";
 
-        AppendLine(out, [NSString stringWithFormat:
-            @"%@VIEW class=%@ super=%@ frameWin=[%@] bounds=[%@] bg=%@ alpha=%.3f hidden=%d opaque=%d ui=%d safe=[%@] subviews=%lu",
-            indent,
+        NSLog(
+            @"[TarabBottom] depth=%ld class=%@ super=%@ frame=[%@] bounds=[%@] bg=%@ alpha=%.3f hidden=%d opaque=%d ui=%d safe=[%@] subviews=%lu",
+            (long)depth,
             cls,
             sup,
-            RectDesc(wr),
+            RectDesc(r),
             RectDesc(v.bounds),
             ColorDesc(v.backgroundColor),
             v.alpha,
@@ -72,110 +94,84 @@ static void DumpViewTree(UIView *v,
             v.userInteractionEnabled,
             InsetsDesc(v.safeAreaInsets),
             (unsigned long)v.subviews.count
-        ]);
+        );
     }
 
     for (UIView *sv in v.subviews) {
-        DumpViewTree(sv, window, out, depth+1, focusTop);
+        DumpBottomViews(sv, window, focusTop, depth + 1);
     }
 }
 
-static void WriteReportForController(UIViewController *vc) {
-    if (!vc.view.window) return;
+static void DumpControllerChain(UIViewController *vc) {
+    if (!vc || !vc.view.window) return;
 
     UIWindow *w = vc.view.window;
-    CGRect wb = w.bounds;
 
-    CGFloat focusTop = wb.origin.y + wb.size.height - 320.0;
-
-    NSMutableString *out = [NSMutableString string];
-
-    AppendLine(out, @"===== TARAB RUNTIME DIAGNOSTIC V9 =====");
-    AppendLine(out, [NSString stringWithFormat:@"controller=%@", NSStringFromClass(vc.class)]);
-    AppendLine(out, [NSString stringWithFormat:@"window=%@", RectDesc(wb)]);
-    AppendLine(out, [NSString stringWithFormat:@"controllerView=%@", RectDesc([vc.view convertRect:vc.view.bounds toView:w])]);
-    AppendLine(out, [NSString stringWithFormat:@"controllerSafe=%@", InsetsDesc(vc.view.safeAreaInsets)]);
-    AppendLine(out, [NSString stringWithFormat:@"additionalSafe=%@", InsetsDesc(vc.additionalSafeAreaInsets)]);
-    AppendLine(out, [NSString stringWithFormat:@"focusTop=%.1f", focusTop]);
-    AppendLine(out, @"");
+    NSLog(
+        @"[TarabBottom] ===== controller=%@ view=[%@] safe=[%@] additional=[%@] =====",
+        NSStringFromClass(vc.class),
+        RectDesc([vc.view convertRect:vc.view.bounds toView:w]),
+        InsetsDesc(vc.view.safeAreaInsets),
+        InsetsDesc(vc.additionalSafeAreaInsets)
+    );
 
     UIViewController *p = vc.parentViewController;
     NSInteger level = 0;
+
     while (p && level < 8) {
-        AppendLine(out, [NSString stringWithFormat:
-            @"PARENT[%ld]=%@ view=%@ safe=%@ additional=%@",
+        NSLog(
+            @"[TarabBottom] parent[%ld]=%@ view=[%@] safe=[%@] additional=[%@]",
             (long)level,
             NSStringFromClass(p.class),
             p.view.window ? RectDesc([p.view convertRect:p.view.bounds toView:w]) : @"nil",
             InsetsDesc(p.view.safeAreaInsets),
             InsetsDesc(p.additionalSafeAreaInsets)
-        ]);
+        );
+
         p = p.parentViewController;
         level++;
     }
+}
 
-    AppendLine(out, @"");
-    AppendLine(out, @"----- WINDOW VIEW TREE (BOTTOM ZONE) -----");
-    DumpViewTree(w, w, out, 0, focusTop);
+static void DumpBottomDiagnostic(UIViewController *vc) {
+    if (!vc || !vc.view.window) return;
 
-    AppendLine(out, @"");
-    AppendLine(out, @"----- CONTROLLER VIEW TREE (BOTTOM ZONE) -----");
-    DumpViewTree(vc.view, w, out, 0, focusTop);
+    UIWindow *w = vc.view.window;
+    CGFloat screenBottom = w.bounds.origin.y + w.bounds.size.height;
+    CGFloat focusTop = screenBottom - 300.0;
 
-    NSArray<NSString *> *paths = NSSearchPathForDirectoriesInDomains(
-        NSDocumentDirectory,
-        NSUserDomainMask,
-        YES
+    NSLog(@"[TarabBottom] >>> BEGIN PAGE %@", NSStringFromClass(vc.class));
+
+    DumpControllerChain(vc);
+
+    NSLog(
+        @"[TarabBottom] window=[%@] focusTop=%.1f",
+        RectDesc(w.bounds),
+        focusTop
     );
 
-    NSString *docs = paths.firstObject;
-    if (!docs) return;
+    DumpBottomViews(w, w, focusTop, 0);
 
-    NSString *safeName = [NSStringFromClass(vc.class)
-        stringByReplacingOccurrencesOfString:@"/" withString:@"_"];
-
-    NSDateFormatter *fmt = [NSDateFormatter new];
-    fmt.dateFormat = @"yyyyMMdd_HHmmss_SSS";
-
-    NSString *name = [NSString stringWithFormat:
-        @"TarabDiag_%@_%@.txt",
-        safeName,
-        [fmt stringFromDate:[NSDate date]]
-    ];
-
-    NSString *path = [docs stringByAppendingPathComponent:name];
-
-    NSError *err = nil;
-    [out writeToFile:path
-          atomically:YES
-            encoding:NSUTF8StringEncoding
-               error:&err];
-
-    NSLog(@"[TarabDiag] report=%@ error=%@", path, err);
+    NSLog(@"[TarabBottom] <<< END PAGE %@", NSStringFromClass(vc.class));
 }
 
 static void HookedAppear(UIViewController *self, SEL _cmd, BOOL animated) {
     if (orig_vc_appear) {
-        ((void(*)(id,SEL,BOOL))orig_vc_appear)(self,_cmd,animated);
+        ((void(*)(id,SEL,BOOL))orig_vc_appear)(self, _cmd, animated);
     }
 
     dispatch_after(
         dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)),
         dispatch_get_main_queue(),
         ^{
-            WriteReportForController(self);
+            DumpBottomDiagnostic(self);
         }
     );
 }
 
 __attribute__((constructor))
-static void InitRuntimeDiagV9(void) {
+static void InitRuntimeDiagV92(void) {
     @autoreleasepool {
-        /*
-          Diagnostic only:
-          hook viewDidAppear globally because it does not alter layout.
-          It only records runtime geometry after each page is already visible.
-        */
         Method m = class_getInstanceMethod(
             UIViewController.class,
             @selector(viewDidAppear:)
@@ -185,5 +181,7 @@ static void InitRuntimeDiagV9(void) {
             orig_vc_appear = method_getImplementation(m);
             method_setImplementation(m, (IMP)HookedAppear);
         }
+
+        NSLog(@"[TarabBottom] RuntimeDiag V9.2 loaded");
     }
 }

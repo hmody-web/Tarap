@@ -25,7 +25,6 @@ def inject(path, dylib):
 
             if end > 0:
                 current = data[off + nameoff:end].decode("utf-8", "ignore")
-
                 if current == dylib:
                     print("LC_LOAD_DYLIB already exists")
                     return
@@ -60,7 +59,6 @@ def inject(path, dylib):
     struct.pack_into("<I", data, 20, sizeofcmds + cmdsize)
 
     open(path, "wb").write(data)
-
     print("Injected:", dylib)
 
 if __name__ == "__main__":

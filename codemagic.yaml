@@ -1,14 +1,14 @@
 workflows:
-  tarab-runtime-diag-v9:
-    name: Build Tarab Runtime Diagnostic V9
+  tarab-runtime-diag-v9-2:
+    name: Build Tarab Runtime Diagnostic V9.2
     instance_type: mac_mini_m2
     max_build_duration: 30
 
     scripts:
-      - name: Build Runtime Diagnostic V9
+      - name: Build Runtime Diagnostic V9.2
         script: |
           chmod +x build_and_merge.sh inject_dylib.py
           ./build_and_merge.sh
 
     artifacts:
-      - "Tarab_RuntimeDiag_V9.zip"
+      - "Tarab_RuntimeDiag_V9_2.zip"

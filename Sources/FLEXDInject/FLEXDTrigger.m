@@ -116,25 +116,30 @@ static BOOL FLEXDClassIsUpdateCoalescing(UIView *view) {
 }
 
 static void FLEXDPatchedUIViewSetFrame(UIView *self, SEL _cmd, CGRect frame) {
-    if (FLEXDClassIsUpdateCoalescing(self)) {
-        // Patch A:
-        // The four nested views in the Sources app-list section all resolve
-        // to the same runtime collection-view family around 358 x 257.
-        // Force any matching 358-wide, ~257-high frame to 450.
-        if (fabs(frame.size.width - 358.0) < 2.0 &&
-            frame.size.height > 245.0 &&
-            frame.size.height < 275.0) {
-            frame.size.height = 450.0;
-        }
+    NSString *className = NSStringFromClass(self.class);
 
-        // Patch B:
-        // The larger page collection previously discovered at 390 x 701
-        // must remain 855 even after SwiftUI relayout/scroll.
-        if (fabs(frame.size.width - 390.0) < 2.0 &&
-            frame.size.height > 680.0 &&
-            frame.size.height < 720.0) {
-            frame.size.height = 855.0;
-        }
+    // Patch A:
+    // FLEX shows FOUR nested objects for this Sources list, including
+    // SwiftUI._UIInheritedView and SwiftUI.UpdateCoalescingCollectionView.
+    // Force ALL of the matching 358 x ~257 wrappers to 450.
+    BOOL isSourcesListWrapper =
+        [className containsString:@"_UIInheritedView"] ||
+        [className containsString:@"UpdateCoalescingCollectionView"];
+
+    if (isSourcesListWrapper &&
+        fabs(frame.size.width - 358.0) < 2.0 &&
+        frame.size.height > 245.0 &&
+        frame.size.height < 275.0) {
+        frame.size.height = 450.0;
+    }
+
+    // Patch B: preserve previous V5 modification.
+    // UpdateCoalescingCollectionView 390 x ~701 -> 855.
+    if (FLEXDClassIsUpdateCoalescing(self) &&
+        fabs(frame.size.width - 390.0) < 2.0 &&
+        frame.size.height > 680.0 &&
+        frame.size.height < 720.0) {
+        frame.size.height = 855.0;
     }
 
     ((void (*)(id, SEL, CGRect))FLEXDOriginalUIViewSetFrame)(self, _cmd, frame);
@@ -152,7 +157,7 @@ static void FLEXDInstallHeightPatch(void) {
         FLEXDOriginalUIViewSetFrame = method_getImplementation(method);
         method_setImplementation(method, (IMP)FLEXDPatchedUIViewSetFrame);
 
-        NSLog(@"[FLEXDInject] Tarab patches installed: 358x~257 -> 450, 390x~701 -> 855");
+        NSLog(@"[FLEXDInject] Tarab patches installed: all Sources 358x~257 wrappers -> 450, UpdateCoalescing 390x~701 -> 855");
     });
 }
 

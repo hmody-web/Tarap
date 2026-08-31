@@ -43,3 +43,9 @@ V5:
 - Restore the previous permanent 390x701 -> 855 patch.
 - Both are enforced on every setFrame call, so SwiftUI scroll/layout should not restore old heights.
 - fleXD remains available with the 3-finger long-press trigger.
+
+V6:
+- Corrected the Sources list patch based on FLEX screenshot.
+- SwiftUI._UIInheritedView at 358x257 is now also forced to 358x450.
+- UpdateCoalescingCollectionView at 358x257 remains forced to 450.
+- Previous UpdateCoalescingCollectionView 390x701 -> 855 patch is preserved.

@@ -1,14 +1,17 @@
 workflows:
-  tarab-runtime-diag-v9-3-2:
-    name: Build Tarab Runtime Diagnostic V9.3.2
+  build-flexd-editable:
+    name: Build Tarab with editable fleXD
     instance_type: mac_mini_m2
-    max_build_duration: 30
+    max_build_duration: 60
+
+    environment:
+      xcode: latest
 
     scripts:
-      - name: Build Runtime Diagnostic V9.3.2
+      - name: Build and inject latest fleXD
         script: |
-          chmod +x build_and_merge.sh inject_dylib.py
-          ./build_and_merge.sh
+          chmod +x build_and_inject.sh inject_dylib.py
+          ./build_and_inject.sh
 
     artifacts:
-      - "Tarab_RuntimeDiag_V9_3_2.zip"
+      - Tarab_fleXD_Editable.ipa

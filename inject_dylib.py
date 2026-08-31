@@ -15,7 +15,8 @@ def inject(path,dylib):
             no=struct.unpack_from("<I",d,off+8)[0]
             e=d.find(b"\0",off+no,off+sz)
             if e>0 and d[off+no:e].decode("utf-8","ignore")==dylib:
-                print("LC_LOAD_DYLIB already exists"); return
+                print("LC_LOAD_DYLIB already exists")
+                return
         off+=sz
     end=32+sizeofcmds
     name=dylib.encode()+b"\0"

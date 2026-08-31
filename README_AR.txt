@@ -1,29 +1,23 @@
-Tarab DeepFix V6.1
+Tarab Tab Backdrop Fix V7
 
 الهدف:
-1) إبقاء Liquid Glass للـ UITabBar.
-2) جعل محتوى الصفحة الحقيقي يمتد خلف الـ floating tab bar في iOS 26.
-3) تصفير حجز الإعلانات من AdsManager و BannerHeightManager.
-4) تصفير additionalSafeAreaInsets.bottom على الصفحة الفعالة.
-5) معالجة adHeight / webViewBottomConstraint عند وجودهما.
-6) عدم عمل hook عام على UIViewController.
+- إزالة/تصفير أي background/backdrop/container خلف UITabBar.
+- إبقاء البار الزجاجي نفسه ظاهر.
+- تمديد selected controller و content controller والـ scroll view
+  إلى أسفل الشاشة خلف البار.
+- تصفير additionalSafeAreaInsets.
+- إبقاء آخر العناصر قابلة للوصول عبر contentInset.
+- لا يوجد hook عام على UIViewController.
+- لا يركز على AdsManager في هذه النسخة.
 
-Codemagic:
-- يقبل أي IPA مهما كان اسمه.
-- الأفضل إبقاء IPA واحد فقط في الريبو.
-- الناتج الوحيد كـ Artifact:
-  Tarab_DeepFix_V6_1.zip
+Codemagic يقبل أي IPA مهما كان اسمه.
+الأفضل IPA واحد فقط داخل الريبو.
 
-داخل ZIP:
-- Tarab_DeepFix_V6_1.ipa
-- V6_Report/app_info.txt
-- V6_Report/macho.txt
-- V6_Report/relevant_strings.txt
-- V6_Report/frameworks.txt
-- V6_Report/post_build.txt
+الناتج:
+Tarab_TabBackdropFix_V7.zip
 
-وقّع Tarab_DeepFix_V6_1.ipa بعد استخراجه من ZIP.
-إذا بقيت الخلفية، ارفع ZIP الناتج نفسه حتى نقرأ تقرير V6 ونحدد الطبقة التالية.
+داخله:
+Tarab_TabBackdropFix_V7.ipa
+README_AR.txt
 
-
-V6.1: تم إزالة جميع CGRectGetHeight / CGRectGetMinY / CGRectGetMaxY واستبدالها بحسابات مباشرة لتجنب linker errors على Xcode 26.4.
+استخرج IPA ثم أعد توقيعه وثبته.

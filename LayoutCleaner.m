@@ -3,76 +3,57 @@
 
 static IMP orig_tab_layout = NULL;
 static IMP inherited_tabvc_layout = NULL;
-static IMP orig_ads_update = NULL;
 
-/* ---------------- Helpers ---------------- */
+/* ---------- Utilities ---------- */
 
-static id SafeGet(id obj, NSString *key) {
-    @try { return [obj valueForKey:key]; }
-    @catch (__unused NSException *e) { return nil; }
+static BOOL NameHas(id obj, NSString *needle) {
+    if (!obj) return NO;
+    NSString *n = NSStringFromClass(object_getClass(obj));
+    return [n rangeOfString:needle options:NSCaseInsensitiveSearch].location != NSNotFound;
 }
-static void SafeSet(id obj, NSString *key, id value) {
-    @try { [obj setValue:value forKey:key]; }
-    @catch (__unused NSException *e) {}
+
+static void ClearViewVisuals(UIView *v) {
+    if (!v) return;
+    v.backgroundColor = UIColor.clearColor;
+    v.opaque = NO;
 }
-static void ZeroConstraint(id obj) {
-    if ([obj isKindOfClass:NSLayoutConstraint.class]) {
-        NSLayoutConstraint *c = (NSLayoutConstraint *)obj;
-        c.constant = 0.0;
+
+/* ---------- Remove tab bar backdrop/background layers ---------- */
+
+static void ClearTabBarBackdropTree(UIView *root) {
+    if (!root) return;
+
+    for (UIView *v in [root.subviews copy]) {
+        BOOL isBackdrop =
+            NameHas(v, @"BarBackground") ||
+            NameHas(v, @"Backdrop") ||
+            NameHas(v, @"VisualEffect") ||
+            NameHas(v, @"BackgroundExtension") ||
+            NameHas(v, @"BackgroundView");
+
+        if (isBackdrop) {
+            ClearViewVisuals(v);
+
+            /*
+             Don't hide everything blindly because some iOS 26 glass
+             internals may be needed for the actual glass appearance.
+             Instead clear the backing color and opacity.
+            */
+            if ([v isKindOfClass:UIVisualEffectView.class]) {
+                UIVisualEffectView *ev = (UIVisualEffectView *)v;
+                ev.backgroundColor = UIColor.clearColor;
+                ev.contentView.backgroundColor = UIColor.clearColor;
+            }
+        }
+
+        ClearTabBarBackdropTree(v);
     }
 }
-static void HideAdView(id obj) {
-    if (![obj isKindOfClass:UIView.class]) return;
-    UIView *v = obj;
-    v.hidden = YES;
-    v.alpha = 0.0;
-    v.userInteractionEnabled = NO;
-    for (NSLayoutConstraint *c in v.constraints) {
-        if (c.firstAttribute == NSLayoutAttributeHeight) c.constant = 0.0;
-    }
-}
 
-/* ---------------- Tarab ad reservation ---------------- */
-
-static void CollapseKnownAdReservations(id obj) {
-    if (!obj) return;
-
-    SafeSet(obj, @"bannerHeight", @0.0);
-    SafeSet(obj, @"inlineBannerHeight", @0.0);
-    SafeSet(obj, @"bannerBottomPadding", @0.0);
-    SafeSet(obj, @"adHeight", @0.0);
-    SafeSet(obj, @"shouldShowBanner", @NO);
-
-    ZeroConstraint(SafeGet(obj, @"bannerBottomConstraint"));
-    ZeroConstraint(SafeGet(obj, @"webViewBottomConstraint"));
-
-    HideAdView(SafeGet(obj, @"bannerView"));
-    HideAdView(SafeGet(obj, @"inlineBannerView"));
-}
-
-static double ZeroDouble(id self, SEL _cmd) { return 0.0; }
-static void IgnoreDouble(id self, SEL _cmd, double v) {}
-static BOOL FalseBool(id self, SEL _cmd) { return NO; }
-static void IgnoreBool(id self, SEL _cmd, BOOL v) {}
-
-static void ReplaceIfPresent(Class c, const char *name, IMP imp) {
-    if (!c) return;
-    Method m = class_getInstanceMethod(c, sel_registerName(name));
-    if (m) method_setImplementation(m, imp);
-}
-
-static void AdsUpdate(id self, SEL _cmd) {
-    if (orig_ads_update) ((void(*)(id,SEL))orig_ads_update)(self,_cmd);
-    CollapseKnownAdReservations(self);
-}
-
-/* ---------------- iOS 26 floating tab bar ---------------- */
-
-static void ConfigureGlassTabBar(UITabBar *tab) {
+static void ConfigureFloatingGlass(UITabBar *tab) {
     if (!tab) return;
 
-    tab.backgroundColor = UIColor.clearColor;
-    tab.opaque = NO;
+    ClearViewVisuals(tab);
     tab.translucent = YES;
 
     if (@available(iOS 15.0, *)) {
@@ -84,181 +65,225 @@ static void ConfigureGlassTabBar(UITabBar *tab) {
         tab.standardAppearance = a;
         tab.scrollEdgeAppearance = a;
     }
+
+    ClearTabBarBackdropTree(tab);
 }
 
 static void TabLayout(UITabBar *self, SEL _cmd) {
-    if (orig_tab_layout) ((void(*)(id,SEL))orig_tab_layout)(self,_cmd);
-    ConfigureGlassTabBar(self);
-}
-
-/* ---------------- Deep content extension ---------------- */
-
-static UIScrollView *FirstScroll(UIView *root) {
-    if (!root) return nil;
-    if ([root isKindOfClass:UIScrollView.class]) return (UIScrollView *)root;
-    for (UIView *v in root.subviews) {
-        UIScrollView *s = FirstScroll(v);
-        if (s) return s;
+    if (orig_tab_layout) {
+        ((void(*)(id,SEL))orig_tab_layout)(self,_cmd);
     }
-    return nil;
+    ConfigureFloatingGlass(self);
 }
 
-static void ExtendAncestorChain(UIView *leaf, UIView *root) {
-    if (!leaf || !root) return;
+/* ---------- Extend selected controller to full tab controller bounds ---------- */
 
-    UIView *v = leaf;
-    while (v && v != root) {
-        UIView *p = v.superview;
-        if (!p) break;
+static UIViewController *RealContentController(UIViewController *vc) {
+    if (!vc) return nil;
 
-        CGRect pf = p.bounds;
-        CGRect f = v.frame;
+    if ([vc isKindOfClass:UINavigationController.class]) {
+        UINavigationController *nav = (UINavigationController *)vc;
+        if (nav.topViewController) return nav.topViewController;
+    }
 
-        /*
-         Preserve the existing top edge, but force the bottom edge to reach
-         the parent bottom. This is the key fix for old pre-iOS-26 tab layouts.
-        */
-        CGFloat newHeight = pf.size.height - f.origin.y;
-        if (newHeight > f.size.height) {
-            f.size.height = newHeight;
-            v.frame = f;
+    if ([vc isKindOfClass:UISplitViewController.class]) {
+        UISplitViewController *split = (UISplitViewController *)vc;
+        if (split.viewControllers.count) return split.viewControllers.lastObject;
+    }
+
+    return vc;
+}
+
+static UIScrollView *FindLargestScrollView(UIView *root) {
+    if (!root) return nil;
+
+    __block UIScrollView *best = nil;
+    __block CGFloat bestArea = 0;
+
+    NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:root];
+
+    while (stack.count) {
+        UIView *v = stack.lastObject;
+        [stack removeLastObject];
+
+        if ([v isKindOfClass:UIScrollView.class]) {
+            CGFloat area = v.bounds.size.width * v.bounds.size.height;
+            if (area > bestArea) {
+                best = (UIScrollView *)v;
+                bestArea = area;
+            }
         }
 
-        v.autoresizingMask |= UIViewAutoresizingFlexibleHeight |
+        for (UIView *sv in v.subviews) {
+            [stack addObject:sv];
+        }
+    }
+
+    return best;
+}
+
+static void ExtendChildToBottom(UIView *child, UIView *parent) {
+    if (!child || !parent) return;
+
+    CGRect f = child.frame;
+    CGFloat parentBottom = parent.bounds.origin.y + parent.bounds.size.height;
+    CGFloat childTop = f.origin.y;
+
+    CGFloat wantedHeight = parentBottom - childTop;
+
+    if (wantedHeight > 0 && f.size.height < wantedHeight) {
+        f.size.height = wantedHeight;
+        child.frame = f;
+    }
+
+    child.autoresizingMask |= UIViewAutoresizingFlexibleHeight |
                               UIViewAutoresizingFlexibleWidth;
-        v = p;
+}
+
+static void ClearPossibleBackdropSiblings(UITabBarController *tc) {
+    if (!tc || !tc.view) return;
+
+    UITabBar *tab = tc.tabBar;
+    UIWindow *w = tc.view.window;
+    if (!w) return;
+
+    CGRect tabFrame = [tab convertRect:tab.bounds toView:w];
+    CGFloat tabTop = tabFrame.origin.y;
+
+    /*
+     Clear only non-interactive wide views occupying the lower region.
+     This targets the opaque/backdrop container behind the floating tab bar
+     while leaving controls and scroll views alone.
+    */
+    NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:w];
+
+    while (stack.count) {
+        UIView *v = stack.lastObject;
+        [stack removeLastObject];
+
+        if (v == tab || v == tc.view) {
+            for (UIView *sv in v.subviews) [stack addObject:sv];
+            continue;
+        }
+
+        if ([v isKindOfClass:UIControl.class] ||
+            [v isKindOfClass:UIScrollView.class]) {
+            for (UIView *sv in v.subviews) [stack addObject:sv];
+            continue;
+        }
+
+        CGRect r = [v convertRect:v.bounds toView:w];
+        CGFloat maxY = r.origin.y + r.size.height;
+        CGFloat screenBottom = w.bounds.origin.y + w.bounds.size.height;
+
+        BOOL wide = r.size.width >= w.bounds.size.width * 0.92;
+        BOOL lowerRegion = r.origin.y <= tabTop + 20.0 &&
+                           maxY >= tabTop - 120.0;
+        BOOL reachesBottom = maxY >= screenBottom - 4.0;
+        BOOL looksBackdrop =
+            NameHas(v, @"Backdrop") ||
+            NameHas(v, @"Background") ||
+            NameHas(v, @"Container") ||
+            NameHas(v, @"Extension");
+
+        if (wide && lowerRegion && reachesBottom &&
+            (looksBackdrop || !v.userInteractionEnabled)) {
+            ClearViewVisuals(v);
+        }
+
+        for (UIView *sv in v.subviews) {
+            [stack addObject:sv];
+        }
     }
 }
 
-static void ExtendSelectedPage(UITabBarController *tc) {
-    if (!tc || !tc.selectedViewController) return;
+static void ExtendPageBehindTab(UITabBarController *tc) {
+    if (!tc) return;
 
     UIViewController *selected = tc.selectedViewController;
-    UIViewController *content = selected;
+    UIViewController *content = RealContentController(selected);
+    if (!selected || !content) return;
 
-    if ([selected isKindOfClass:UINavigationController.class]) {
-        UINavigationController *nav = (UINavigationController *)selected;
-        if (nav.topViewController) content = nav.topViewController;
-    }
-
-    /* Remove any ad/safe-area reserve from both container and real page. */
+    /*
+     Remove extra bottom safe area reservation on both container and page.
+    */
     selected.additionalSafeAreaInsets = UIEdgeInsetsZero;
     content.additionalSafeAreaInsets = UIEdgeInsetsZero;
 
-    CollapseKnownAdReservations(selected);
-    CollapseKnownAdReservations(content);
+    selected.edgesForExtendedLayout = UIRectEdgeAll;
+    selected.extendedLayoutIncludesOpaqueBars = YES;
+    content.edgesForExtendedLayout = UIRectEdgeAll;
+    content.extendedLayoutIncludesOpaqueBars = YES;
 
-    /*
-     Old Tarab layout can size the selected controller only to the old
-     tab-bar-safe rectangle. Expand the actual UIKit container hierarchy
-     after UIKit finishes layout.
-    */
+    ClearViewVisuals(tc.view);
     if (selected.view) {
-        ExtendAncestorChain(selected.view, tc.view);
-
-        CGRect f = selected.view.frame;
-        CGFloat targetBottom = tc.view.bounds.size.height;
-        if ((f.origin.y + f.size.height) < targetBottom) {
-            f.size.height = targetBottom - f.origin.y;
-            selected.view.frame = f;
-        }
+        ExtendChildToBottom(selected.view, tc.view);
     }
 
     if (content.view) {
-        content.view.autoresizingMask |= UIViewAutoresizingFlexibleHeight |
-                                         UIViewAutoresizingFlexibleWidth;
+        ClearViewVisuals(content.view);
 
-        UIScrollView *scroll = FirstScroll(content.view);
-        if (scroll) {
+        if (content.view.superview) {
+            ExtendChildToBottom(content.view, content.view.superview);
+        }
+
+        UIScrollView *scroll = FindLargestScrollView(content.view);
+
+        if (scroll && scroll.superview) {
+            ExtendChildToBottom(scroll, scroll.superview);
+
             /*
-             The scroll view itself fills the page behind glass.
-             Keep a bottom content inset only so the LAST control remains
-             reachable above the floating tab bar.
+             Keep the content itself under the bar.
+             The extra contentInset prevents the last item from being
+             impossible to reach, but the background still continues behind.
             */
-            CGRect sf = scroll.frame;
-            CGFloat desiredBottom = content.view.bounds.size.height;
-            if ((sf.origin.y + sf.size.height) < desiredBottom) {
-                sf.size.height = desiredBottom - sf.origin.y;
-                scroll.frame = sf;
+            UIEdgeInsets inset = scroll.contentInset;
+            CGFloat barH = tc.tabBar.bounds.size.height;
+            CGFloat safeB = tc.view.safeAreaInsets.bottom;
+
+            if (inset.bottom < barH + safeB) {
+                inset.bottom = barH + safeB;
+                scroll.contentInset = inset;
             }
 
-            UIEdgeInsets inset = scroll.contentInset;
-            CGFloat safe = tc.view.safeAreaInsets.bottom;
-            CGFloat bar = tc.tabBar.bounds.size.height;
-            inset.bottom = MAX(bar + safe, inset.bottom);
-            scroll.contentInset = inset;
+            if (@available(iOS 13.0, *)) {
+                UIEdgeInsets vi = scroll.verticalScrollIndicatorInsets;
+                vi.bottom = barH + safeB;
+                scroll.verticalScrollIndicatorInsets = vi;
+            }
         }
     }
 
-    /* Known Tarab support-page reservation; harmless on other pages. */
-    ZeroConstraint(SafeGet(content, @"webViewBottomConstraint"));
-    SafeSet(content, @"adHeight", @0.0);
-
-    ConfigureGlassTabBar(tc.tabBar);
+    ConfigureFloatingGlass(tc.tabBar);
+    ClearPossibleBackdropSiblings(tc);
 
     [tc.view bringSubviewToFront:tc.tabBar];
 }
 
-static void SafeTabVCLayout(UITabBarController *self, SEL _cmd) {
+static void TabVCLayout(UITabBarController *self, SEL _cmd) {
     if (inherited_tabvc_layout) {
         ((void(*)(id,SEL))inherited_tabvc_layout)(self,_cmd);
     }
-    ExtendSelectedPage(self);
+
+    ExtendPageBehindTab(self);
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        ExtendSelectedPage(self);
+        ExtendPageBehindTab(self);
     });
 }
 
-/* ---------------- Init ---------------- */
+/* ---------- Safe per-class override ---------- */
 
 __attribute__((constructor))
-static void InitDeepFix(void) {
+static void InitV7(void) {
     @autoreleasepool {
-        /* Tarab AdsManager */
-        Class ads = objc_getClass("_TtC5Tarab10AdsManager");
-        if (!ads) ads = objc_getClass("AdsManager");
-
-        if (ads) {
-            ReplaceIfPresent(ads, "bannerHeight", (IMP)ZeroDouble);
-            ReplaceIfPresent(ads, "setBannerHeight:", (IMP)IgnoreDouble);
-            ReplaceIfPresent(ads, "inlineBannerHeight", (IMP)ZeroDouble);
-            ReplaceIfPresent(ads, "setInlineBannerHeight:", (IMP)IgnoreDouble);
-            ReplaceIfPresent(ads, "bannerBottomPadding", (IMP)ZeroDouble);
-            ReplaceIfPresent(ads, "setBannerBottomPadding:", (IMP)IgnoreDouble);
-            ReplaceIfPresent(ads, "shouldShowBanner", (IMP)FalseBool);
-            ReplaceIfPresent(ads, "setShouldShowBanner:", (IMP)IgnoreBool);
-
-            Method m = class_getInstanceMethod(
-                ads, sel_registerName("updateBannerPosition")
-            );
-            if (m) {
-                orig_ads_update = method_getImplementation(m);
-                method_setImplementation(m, (IMP)AdsUpdate);
-            }
-        }
-
-        /* Tarab BannerHeightManager */
-        Class bhm = objc_getClass("_TtC5Tarab19BannerHeightManager");
-        if (!bhm) bhm = objc_getClass("BannerHeightManager");
-        if (bhm) {
-            ReplaceIfPresent(bhm, "adHeight", (IMP)ZeroDouble);
-            ReplaceIfPresent(bhm, "setAdHeight:", (IMP)IgnoreDouble);
-            ReplaceIfPresent(bhm, "bannerHeight", (IMP)ZeroDouble);
-            ReplaceIfPresent(bhm, "setBannerHeight:", (IMP)IgnoreDouble);
-        }
-
-        /* Keep working V2-style tab transparency */
-        Method tm = class_getInstanceMethod(UITabBar.class, @selector(layoutSubviews));
+        Method tm = class_getInstanceMethod(UITabBar.class,
+                                            @selector(layoutSubviews));
         if (tm) {
             orig_tab_layout = method_getImplementation(tm);
             method_setImplementation(tm, (IMP)TabLayout);
         }
 
-        /*
-         IMPORTANT: create/replace method ONLY on UITabBarController itself.
-         Never mutate UIViewController's inherited implementation globally.
-        */
         Class tc = UITabBarController.class;
         SEL sel = @selector(viewDidLayoutSubviews);
         Method inherited = class_getInstanceMethod(tc, sel);
@@ -267,19 +292,21 @@ static void InitDeepFix(void) {
             inherited_tabvc_layout = method_getImplementation(inherited);
             const char *types = method_getTypeEncoding(inherited);
 
-            if (!class_addMethod(tc, sel, (IMP)SafeTabVCLayout, types)) {
+            if (!class_addMethod(tc, sel, (IMP)TabVCLayout, types)) {
                 unsigned int count = 0;
-                Method *list = class_copyMethodList(tc, &count);
+                Method *methods = class_copyMethodList(tc, &count);
+
                 for (unsigned int i=0; i<count; i++) {
-                    if (method_getName(list[i]) == sel) {
+                    if (method_getName(methods[i]) == sel) {
                         inherited_tabvc_layout =
-                            method_getImplementation(list[i]);
-                        method_setImplementation(list[i],
-                                                 (IMP)SafeTabVCLayout);
+                            method_getImplementation(methods[i]);
+                        method_setImplementation(methods[i],
+                                                 (IMP)TabVCLayout);
                         break;
                     }
                 }
-                free(list);
+
+                free(methods);
             }
         }
     }

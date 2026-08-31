@@ -4,22 +4,20 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
-OUT="Tarab_5.11_LayoutCleaner_SAFE_V4.ipa"
+OUT="Tarab_AdsSourceFix_V5.ipa"
 
 echo "==> Searching for ANY IPA"
-
-INPUT="$(find "$ROOT" -maxdepth 5 -type f -name '*.ipa' \
-  ! -name "$OUT" | head -1 || true)"
+INPUT="$(find "$ROOT" -maxdepth 5 -type f -name '*.ipa' ! -name "$OUT" | head -1 || true)"
 
 if [ -z "${INPUT:-}" ]; then
-  echo "❌ No IPA found"
-  find "$ROOT" -maxdepth 5 -type f | sort
-  exit 1
+    echo "❌ No IPA found"
+    find "$ROOT" -maxdepth 5 -type f | sort
+    exit 1
 fi
 
 echo "✅ Input: $INPUT"
 
-WORK="$ROOT/work_v4"
+WORK="$ROOT/work_ads_v5"
 rm -rf "$WORK"
 mkdir -p "$WORK"
 cd "$WORK"
@@ -35,21 +33,21 @@ EXEC="$APP/$EXEC_NAME"
 FW="$APP/Frameworks/LayoutCleaner.framework"
 SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
 
-echo "==> Replacing LayoutCleaner.framework"
+echo "==> Building targeted AdsManager V5"
 rm -rf "$FW"
 mkdir -p "$FW"
 
 xcrun clang \
-  -arch arm64 \
-  -isysroot "$SDK" \
-  -miphoneos-version-min=15.0 \
-  -fobjc-arc \
-  -dynamiclib \
-  "$ROOT/LayoutCleaner.m" \
-  -framework Foundation \
-  -framework UIKit \
-  -install_name '@rpath/LayoutCleaner.framework/LayoutCleaner' \
-  -o "$FW/LayoutCleaner"
+    -arch arm64 \
+    -isysroot "$SDK" \
+    -miphoneos-version-min=15.0 \
+    -fobjc-arc \
+    -dynamiclib \
+    "$ROOT/LayoutCleaner.m" \
+    -framework Foundation \
+    -framework UIKit \
+    -install_name '@rpath/LayoutCleaner.framework/LayoutCleaner' \
+    -o "$FW/LayoutCleaner"
 
 chmod 755 "$FW/LayoutCleaner"
 
@@ -63,21 +61,21 @@ cat > "$FW/Info.plist" <<'EOF'
 <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
 <key>CFBundleName</key><string>LayoutCleaner</string>
 <key>CFBundlePackageType</key><string>FMWK</string>
-<key>CFBundleShortVersionString</key><string>4.0</string>
-<key>CFBundleVersion</key><string>40</string>
+<key>CFBundleShortVersionString</key><string>5.0</string>
+<key>CFBundleVersion</key><string>50</string>
 <key>MinimumOSVersion</key><string>15.0</string>
 </dict></plist>
 EOF
 
 if otool -L "$EXEC" | grep -q '@rpath/LayoutCleaner.framework/LayoutCleaner'; then
-  echo "✅ Existing load command retained; Mach-O unchanged"
+    echo "✅ Existing LayoutCleaner load command retained"
 else
-  echo "==> Injecting load command"
-  python3 "$ROOT/inject_dylib.py" \
-    "$EXEC" '@rpath/LayoutCleaner.framework/LayoutCleaner'
+    echo "==> Injecting LayoutCleaner load command"
+    python3 "$ROOT/inject_dylib.py" \
+      "$EXEC" '@rpath/LayoutCleaner.framework/LayoutCleaner'
 fi
 
-echo "==> Verify"
+echo "==> Verification"
 otool -L "$EXEC" | grep -E 'LayoutCleaner|ProfileOverlay|PortraitOverlay' || true
 
 rm -rf "$APP/_CodeSignature"

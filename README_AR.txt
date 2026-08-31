@@ -1,18 +1,28 @@
-SAFE V4
+Tarab Ads Source Fix V5
 
-سبب crash V3/VANY:
-كان hook لـ UITabBarController.viewDidLayoutSubviews يتم عبر Method موروث،
-وهذا ممكن يعدل UIViewController.viewDidLayoutSubviews لكل التطبيق.
+تم تتبع مصدر مساحة الإعلان من الملف التنفيذي نفسه.
 
-V4:
-- ينشئ override خاص بـ UITabBarController فقط عبر class_addMethod.
-- لا يغير UIViewController العام.
-- يحتفظ بمنطق V2 للـ UITabBar لأنه ثبت أنه يعمل.
-- يصفر BannerHeightManager.
-- يحاول تمديد محتوى الصفحة خلف الـ tab bar بدون إخفاء views عشوائية.
-- يقبل أي IPA موجود مهما كان اسمه.
+المصدر الحقيقي داخل:
+_TtC5Tarab10AdsManager
 
-الأفضل استخدام آخر IPA ثبت أنه يفتح عندك كـ input.
+ووجد داخله:
+- bannerBottomConstraint
+- bannerBottomPadding
+- _bannerHeight
+- _inlineBannerHeight
+- bannerView
+- inlineBannerView
+- shouldShowBanner
+- updateBannerPosition
+
+V5 لا يلمس UIViewController أو UITabBarController.
+يستهدف AdsManager فقط ويصفر الحجز بعد updateBannerPosition.
+
+ويبقي شفافية UITabBar بطريقة V2 التي اشتغلت سابقاً.
+
+السكربت يقبل أي IPA مهما كان اسمه.
+الأفضل وضع IPA واحد فقط داخل الريبو.
+
 الناتج:
-Tarab_5.11_LayoutCleaner_SAFE_V4.ipa
+Tarab_AdsSourceFix_V5.ipa
 ثم أعد توقيعه.

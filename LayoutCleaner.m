@@ -1,43 +1,157 @@
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 
+static IMP orig_updateBannerPosition = NULL;
 static IMP orig_tab_layout = NULL;
-static IMP inherited_tabvc_layout = NULL;
 
-/* ---------- BannerHeightManager ---------- */
+/* ---------- Utilities ---------- */
 
-static double zeroDouble(id self, SEL _cmd) { return 0.0; }
-static void ignoreDouble(id self, SEL _cmd, double value) {}
-static BOOL falseBool(id self, SEL _cmd) { return NO; }
-static void ignoreBool(id self, SEL _cmd, BOOL value) {}
+static id safeValue(id obj, NSString *key) {
+    @try {
+        return [obj valueForKey:key];
+    } @catch (__unused NSException *e) {
+        return nil;
+    }
+}
+
+static void safeSetValue(id obj, NSString *key, id value) {
+    @try {
+        [obj setValue:value forKey:key];
+    } @catch (__unused NSException *e) {}
+}
+
+static void zeroConstraint(id c) {
+    if ([c isKindOfClass:[NSLayoutConstraint class]]) {
+        NSLayoutConstraint *constraint = (NSLayoutConstraint *)c;
+        constraint.constant = 0.0;
+        constraint.active = NO;
+    }
+}
+
+static void hideAdView(id obj) {
+    if ([obj isKindOfClass:[UIView class]]) {
+        UIView *v = (UIView *)obj;
+        v.hidden = YES;
+        v.alpha = 0.0;
+        v.userInteractionEnabled = NO;
+
+        for (NSLayoutConstraint *c in v.constraints) {
+            if (c.firstAttribute == NSLayoutAttributeHeight) {
+                c.constant = 0.0;
+            }
+        }
+
+        UIView *superview = v.superview;
+        if (superview) {
+            for (NSLayoutConstraint *c in superview.constraints) {
+                if ((c.firstItem == v || c.secondItem == v) &&
+                    (c.firstAttribute == NSLayoutAttributeHeight ||
+                     c.secondAttribute == NSLayoutAttributeHeight)) {
+                    c.constant = 0.0;
+                }
+            }
+        }
+    }
+}
+
+/* ---------- Actual source: Tarab AdsManager ---------- */
+
+static void collapseAdsManager(id manager) {
+    if (!manager) return;
+
+    /* These ivars/properties are present in Tarab's AdsManager binary. */
+    safeSetValue(manager, @"bannerBottomPadding", @0.0);
+    safeSetValue(manager, @"bannerHeight", @0.0);
+    safeSetValue(manager, @"inlineBannerHeight", @0.0);
+    safeSetValue(manager, @"shouldShowBanner", @NO);
+
+    id bottomConstraint = safeValue(manager, @"bannerBottomConstraint");
+    zeroConstraint(bottomConstraint);
+
+    hideAdView(safeValue(manager, @"bannerView"));
+    hideAdView(safeValue(manager, @"inlineBannerView"));
+
+    /*
+     Some builds keep NSLayoutConstraint references only as ivars.
+     Access them directly if KVC/property resolution did not expose them.
+    */
+    Ivar iv = class_getInstanceVariable(object_getClass(manager), "bannerBottomConstraint");
+    if (!iv) iv = class_getInstanceVariable(object_getClass(manager), "_bannerBottomConstraint");
+    if (iv) {
+        id c = object_getIvar(manager, iv);
+        zeroConstraint(c);
+    }
+
+    Ivar bv = class_getInstanceVariable(object_getClass(manager), "bannerView");
+    if (!bv) bv = class_getInstanceVariable(object_getClass(manager), "_bannerView");
+    if (bv) hideAdView(object_getIvar(manager, bv));
+
+    Ivar ibv = class_getInstanceVariable(object_getClass(manager), "inlineBannerView");
+    if (!ibv) ibv = class_getInstanceVariable(object_getClass(manager), "_inlineBannerView");
+    if (ibv) hideAdView(object_getIvar(manager, ibv));
+}
+
+static void hooked_updateBannerPosition(id self, SEL _cmd) {
+    /*
+     Let Tarab finish its normal layout first, then remove only the ad reserve.
+     This means the app can relayout normally, and we collapse the ad slot last.
+    */
+    if (orig_updateBannerPosition) {
+        ((void(*)(id,SEL))orig_updateBannerPosition)(self, _cmd);
+    }
+
+    collapseAdsManager(self);
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        collapseAdsManager(self);
+
+        UIWindow *w = nil;
+        for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+            if (scene.activationState == UISceneActivationStateForegroundActive &&
+                [scene isKindOfClass:[UIWindowScene class]]) {
+                for (UIWindow *candidate in ((UIWindowScene *)scene).windows) {
+                    if (candidate.isKeyWindow) {
+                        w = candidate;
+                        break;
+                    }
+                }
+            }
+            if (w) break;
+        }
+
+        [w layoutIfNeeded];
+    });
+}
+
+/* ---------- Getter/setter hooks on AdsManager only ---------- */
+
+static double zeroDouble(id self, SEL _cmd) {
+    return 0.0;
+}
+
+static void ignoreDouble(id self, SEL _cmd, double value) {
+}
+
+static BOOL falseBool(id self, SEL _cmd) {
+    return NO;
+}
+
+static void ignoreBool(id self, SEL _cmd, BOOL value) {
+}
 
 static void replaceIfPresent(Class c, const char *name, IMP imp) {
     if (!c) return;
     Method m = class_getInstanceMethod(c, sel_registerName(name));
-    if (m) method_setImplementation(m, imp);
+    if (!m) return;
+
+    /*
+      AdsManager is an app-specific class, so replacing its own methods does
+      not affect UIViewController/UIKit globally.
+    */
+    method_setImplementation(m, imp);
 }
 
-/* ---------- Tab bar transparency ---------- */
-
-static BOOL classNameContains(id obj, NSString *needle) {
-    if (!obj) return NO;
-    NSString *name = NSStringFromClass(object_getClass(obj));
-    return [name rangeOfString:needle options:NSCaseInsensitiveSearch].location != NSNotFound;
-}
-
-static void cleanTabSubviews(UIView *root) {
-    if (!root) return;
-
-    for (UIView *v in [root.subviews copy]) {
-        if (classNameContains(v, @"BarBackground") ||
-            classNameContains(v, @"Backdrop") ||
-            classNameContains(v, @"VisualEffect")) {
-            v.backgroundColor = UIColor.clearColor;
-            v.opaque = NO;
-        }
-        cleanTabSubviews(v);
-    }
-}
+/* ---------- Keep the V2 tab transparency that already worked ---------- */
 
 static void makeTabTransparent(UITabBar *tab) {
     if (!tab) return;
@@ -47,151 +161,65 @@ static void makeTabTransparent(UITabBar *tab) {
     tab.translucent = YES;
 
     if (@available(iOS 15.0, *)) {
-        UITabBarAppearance *a = [UITabBarAppearance new];
-        [a configureWithTransparentBackground];
-        a.backgroundColor = UIColor.clearColor;
-        a.backgroundEffect = nil;
-        a.shadowColor = UIColor.clearColor;
-        tab.standardAppearance = a;
-        tab.scrollEdgeAppearance = a;
-    }
+        UITabBarAppearance *appearance = [UITabBarAppearance new];
+        [appearance configureWithTransparentBackground];
+        appearance.backgroundColor = UIColor.clearColor;
+        appearance.backgroundEffect = nil;
+        appearance.shadowColor = UIColor.clearColor;
 
-    cleanTabSubviews(tab);
+        tab.standardAppearance = appearance;
+        tab.scrollEdgeAppearance = appearance;
+    }
 }
 
-static void tab_layout(UITabBar *self, SEL _cmd) {
+static void hooked_tab_layout(UITabBar *self, SEL _cmd) {
     if (orig_tab_layout) {
         ((void(*)(id,SEL))orig_tab_layout)(self, _cmd);
     }
+
     makeTabTransparent(self);
 }
 
-/* ---------- Selected page extends under the tab bar ---------- */
-
-static UIScrollView *firstScrollView(UIView *root) {
-    if (!root) return nil;
-    if ([root isKindOfClass:UIScrollView.class]) return (UIScrollView *)root;
-
-    for (UIView *v in root.subviews) {
-        UIScrollView *r = firstScrollView(v);
-        if (r) return r;
-    }
-    return nil;
-}
-
-static void extendPage(UITabBarController *tc) {
-    if (!tc) return;
-
-    UIViewController *vc = tc.selectedViewController;
-    if (!vc) return;
-
-    UIViewController *target = vc;
-
-    if ([vc isKindOfClass:UINavigationController.class]) {
-        UIViewController *top = ((UINavigationController *)vc).topViewController;
-        if (top) target = top;
-    }
-
-    target.edgesForExtendedLayout = UIRectEdgeAll;
-    target.extendedLayoutIncludesOpaqueBars = YES;
-
-    UIView *page = target.view;
-    if (!page) return;
-
-    page.backgroundColor = page.backgroundColor ?: UIColor.clearColor;
-
-    UIScrollView *scroll = firstScrollView(page);
-    if (scroll) {
-        /*
-         Keep the page under the tab bar while preserving its own content.
-         We do NOT zero the whole safe-area and do NOT hide arbitrary views.
-        */
-        scroll.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
-
-        UIEdgeInsets inset = scroll.contentInset;
-        inset.bottom = 0;
-        scroll.contentInset = inset;
-
-        if (@available(iOS 13.0, *)) {
-            UIEdgeInsets v = scroll.verticalScrollIndicatorInsets;
-            v.bottom = 0;
-            scroll.verticalScrollIndicatorInsets = v;
-
-            UIEdgeInsets h = scroll.horizontalScrollIndicatorInsets;
-            h.bottom = 0;
-            scroll.horizontalScrollIndicatorInsets = h;
-        }
-    }
-
-    makeTabTransparent(tc.tabBar);
-}
-
-/*
- Safe per-class override:
- Do NOT call method_setImplementation on an inherited UIViewController Method.
- Instead class_addMethod creates an override owned only by UITabBarController.
-*/
-static void safe_tabvc_layout(UITabBarController *self, SEL _cmd) {
-    if (inherited_tabvc_layout) {
-        ((void(*)(id,SEL))inherited_tabvc_layout)(self, _cmd);
-    }
-    extendPage(self);
-}
+/* ---------- Init ---------- */
 
 __attribute__((constructor))
-static void init_v4(void) {
+static void init_v5(void) {
     @autoreleasepool {
-        /* Targeted banner manager only */
-        Class bhm = objc_getClass("_TtC5Tarab19BannerHeightManager");
-        if (!bhm) bhm = objc_getClass("BannerHeightManager");
+        Class ads = objc_getClass("_TtC5Tarab10AdsManager");
+        if (!ads) ads = objc_getClass("AdsManager");
 
-        replaceIfPresent(bhm, "bannerHeight", (IMP)zeroDouble);
-        replaceIfPresent(bhm, "setBannerHeight:", (IMP)ignoreDouble);
-        replaceIfPresent(bhm, "inlineBannerHeight", (IMP)zeroDouble);
-        replaceIfPresent(bhm, "setInlineBannerHeight:", (IMP)ignoreDouble);
-        replaceIfPresent(bhm, "bannerBottomPadding", (IMP)zeroDouble);
-        replaceIfPresent(bhm, "setBannerBottomPadding:", (IMP)ignoreDouble);
-        replaceIfPresent(bhm, "shouldShowBanner", (IMP)falseBool);
-        replaceIfPresent(bhm, "setShouldShowBanner:", (IMP)ignoreBool);
+        if (ads) {
+            replaceIfPresent(ads, "bannerHeight", (IMP)zeroDouble);
+            replaceIfPresent(ads, "setBannerHeight:", (IMP)ignoreDouble);
 
-        /* V2-style UITabBar hook - already known to work */
-        Class tb = UITabBar.class;
-        Method tm = class_getInstanceMethod(tb, @selector(layoutSubviews));
-        if (tm) {
-            orig_tab_layout = method_getImplementation(tm);
-            method_setImplementation(tm, (IMP)tab_layout);
+            replaceIfPresent(ads, "inlineBannerHeight", (IMP)zeroDouble);
+            replaceIfPresent(ads, "setInlineBannerHeight:", (IMP)ignoreDouble);
+
+            replaceIfPresent(ads, "bannerBottomPadding", (IMP)zeroDouble);
+            replaceIfPresent(ads, "setBannerBottomPadding:", (IMP)ignoreDouble);
+
+            replaceIfPresent(ads, "shouldShowBanner", (IMP)falseBool);
+            replaceIfPresent(ads, "setShouldShowBanner:", (IMP)ignoreBool);
+
+            Method update = class_getInstanceMethod(
+                ads,
+                sel_registerName("updateBannerPosition")
+            );
+
+            if (update) {
+                orig_updateBannerPosition = method_getImplementation(update);
+                method_setImplementation(
+                    update,
+                    (IMP)hooked_updateBannerPosition
+                );
+            }
         }
 
-        /*
-         Add an override ONLY on UITabBarController.
-         This avoids modifying UIViewController globally.
-        */
-        Class tc = UITabBarController.class;
-        SEL sel = @selector(viewDidLayoutSubviews);
-
-        Method inherited = class_getInstanceMethod(tc, sel);
-        if (inherited) {
-            inherited_tabvc_layout = method_getImplementation(inherited);
-            const char *types = method_getTypeEncoding(inherited);
-
-            BOOL added = class_addMethod(tc, sel, (IMP)safe_tabvc_layout, types);
-
-            if (!added) {
-                /*
-                 If UITabBarController already owns an override, replace only
-                 its own method after confirming it is present directly.
-                */
-                unsigned int count = 0;
-                Method *methods = class_copyMethodList(tc, &count);
-                for (unsigned int i = 0; i < count; i++) {
-                    if (method_getName(methods[i]) == sel) {
-                        inherited_tabvc_layout = method_getImplementation(methods[i]);
-                        method_setImplementation(methods[i], (IMP)safe_tabvc_layout);
-                        break;
-                    }
-                }
-                free(methods);
-            }
+        Class tb = UITabBar.class;
+        Method layout = class_getInstanceMethod(tb, @selector(layoutSubviews));
+        if (layout) {
+            orig_tab_layout = method_getImplementation(layout);
+            method_setImplementation(layout, (IMP)hooked_tab_layout);
         }
     }
 }

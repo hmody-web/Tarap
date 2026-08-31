@@ -1,41 +1,60 @@
 #import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
 
 static NSString * const kCover = @"https://scrptaty.com/apps/tarab/media/1.jpg";
 static NSString * const kIcon  = @"https://scrptaty.com/apps/tarab/media/icon1.png";
 static NSString * const kURL   = @"https://scrptaty.com/";
 
-static void ForceBanner(id obj) {
+static BOOL LooksLikeTarabItems(NSData *data) {
+    if (!data || data.length < 20) return NO;
+    NSString *s = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+    if (!s) return NO;
+    return ([s rangeOfString:@"\"isBanner\""].location != NSNotFound &&
+            [s rangeOfString:@"\"coverURL\""].location != NSNotFound &&
+            ([s rangeOfString:@"tarab.app/uploads/media"].location != NSNotFound ||
+             [s rangeOfString:@"panoramavideo.app/uploads/media"].location != NSNotFound));
+}
+
+static void PatchBannerDictionary(NSMutableDictionary *d) {
+    if (![d isKindOfClass:[NSMutableDictionary class]]) return;
+    if (![d[@"isBanner"] boolValue]) return;
+
+    d[@"coverURL"] = kCover;
+    d[@"iconURL"] = kIcon;
+    d[@"type"] = @"internal_url";
+    d[@"action"] = [@{ @"url": kURL } mutableCopy];
+    d[@"name"] = [@{ @"ar": @"سكربتاتي", @"en": @"سكربتاتي" } mutableCopy];
+    d[@"subtitle"] = [@{ @"ar": @"عالمك البرمجي في تطبيق واحد !", @"en": @"عالمك البرمجي في تطبيق واحد !" } mutableCopy];
+    d[@"availability"] = [@{ @"countries": @[], @"showMode": @"all" } mutableCopy];
+}
+
+static void PatchTopLevelItems(id obj) {
     if ([obj isKindOfClass:[NSMutableArray class]]) {
-        for (id x in (NSMutableArray *)obj) ForceBanner(x);
+        for (id item in (NSMutableArray *)obj) {
+            if ([item isKindOfClass:[NSMutableDictionary class]]) PatchBannerDictionary(item);
+        }
         return;
     }
-    if (![obj isKindOfClass:[NSMutableDictionary class]]) return;
-    NSMutableDictionary *d=(NSMutableDictionary *)obj;
-    if ([d[@"isBanner"] boolValue]) {
-        d[@"coverURL"] = kCover;
-        d[@"iconURL"] = kIcon;
-        d[@"type"] = @"internal_url";
-        d[@"action"] = [@{ @"url": kURL } mutableCopy];
-        d[@"name"] = [@{ @"ar": @"سكربتاتي", @"en": @"سكربتاتي" } mutableCopy];
-        d[@"subtitle"] = [@{ @"ar": @"عالمك البرمجي في تطبيق واحد !", @"en": @"عالمك البرمجي في تطبيق واحد !" } mutableCopy];
-        d[@"availability"] = [@{ @"countries": @[], @"showMode": @"all" } mutableCopy];
+
+    if ([obj isKindOfClass:[NSMutableDictionary class]]) {
+        NSMutableDictionary *root = (NSMutableDictionary *)obj;
+        for (NSString *key in @[@"iphone_items", @"ipad_items", @"items"]) {
+            id arr = root[key];
+            if ([arr isKindOfClass:[NSMutableArray class]]) {
+                for (id item in (NSMutableArray *)arr) {
+                    if ([item isKindOfClass:[NSMutableDictionary class]]) PatchBannerDictionary(item);
+                }
+            }
+        }
     }
-    for (id key in [d allKeys]) ForceBanner(d[key]);
 }
 
 %hook NSJSONSerialization
 + (id)JSONObjectWithData:(NSData *)data options:(NSJSONReadingOptions)opt error:(NSError **)error {
-    id obj=%orig(data, opt|NSJSONReadingMutableContainers, error);
-    ForceBanner(obj); return obj;
+    // Do not touch normal JSON used by YouTube/Firebase/etc.
+    if (!LooksLikeTarabItems(data)) return %orig(data, opt, error);
+
+    id obj = %orig(data, opt | NSJSONReadingMutableContainers, error);
+    if (obj) PatchTopLevelItems(obj);
+    return obj;
 }
 %end
-
-// Re-apply after app becomes active, covering cached/reloaded JSON paths.
-%ctor {
-    @autoreleasepool {
-        [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidBecomeActiveNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(__unused NSNotification *n) {
-            // JSON interception remains active for every subsequent config refresh.
-        }];
-    }
-}

@@ -1,23 +1,28 @@
-Tarab Tab Backdrop Fix V7
+Tarab MKTabBar Fix V8
 
-الهدف:
-- إزالة/تصفير أي background/backdrop/container خلف UITabBar.
-- إبقاء البار الزجاجي نفسه ظاهر.
-- تمديد selected controller و content controller والـ scroll view
-  إلى أسفل الشاشة خلف البار.
+هذه النسخة تستهدف الكلاس الحقيقي الموجود داخل Tarab:
+MKTabBarViewController
+
+ولا تعمل hook عام على UIViewController.
+
+العمل:
+- override لـ viewDidLayoutSubviews فقط داخل MKTabBarViewController.
+- override لـ viewSafeAreaInsetsDidChange فقط داخل MKTabBarViewController.
 - تصفير additionalSafeAreaInsets.
-- إبقاء آخر العناصر قابلة للوصول عبر contentInset.
-- لا يوجد hook عام على UIViewController.
-- لا يركز على AdsManager في هذه النسخة.
+- تمديد child controllers وcontainers إلى أسفل الشاشة.
+- تمديد أكبر UIScrollView داخل كل tab.
+- عدم تغيير حجم/إخفاء الـtab bar نفسه.
+- إبقاء UITabBar شفاف/زجاجي.
+- تنظيف background/backdrop containers داخل MKTabBar root فقط.
 
-Codemagic يقبل أي IPA مهما كان اسمه.
-الأفضل IPA واحد فقط داخل الريبو.
+Codemagic:
+- يقبل أي IPA مهما كان اسمه.
+- الأفضل وجود IPA واحد فقط في الريبو.
+- الناتج:
+  Tarab_MKTabBarFix_V8.zip
 
-الناتج:
-Tarab_TabBackdropFix_V7.zip
+داخل ZIP:
+- Tarab_MKTabBarFix_V8.ipa
+- README_AR.txt
 
-داخله:
-Tarab_TabBackdropFix_V7.ipa
-README_AR.txt
-
-استخرج IPA ثم أعد توقيعه وثبته.
+استخرج IPA ثم أعد توقيعه وجربه.

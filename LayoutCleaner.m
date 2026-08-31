@@ -1,10 +1,9 @@
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 
+static IMP orig_mk_layout = NULL;
+static IMP orig_mk_safearea = NULL;
 static IMP orig_tab_layout = NULL;
-static IMP inherited_tabvc_layout = NULL;
-
-/* ---------- Utilities ---------- */
 
 static BOOL NameHas(id obj, NSString *needle) {
     if (!obj) return NO;
@@ -12,48 +11,27 @@ static BOOL NameHas(id obj, NSString *needle) {
     return [n rangeOfString:needle options:NSCaseInsensitiveSearch].location != NSNotFound;
 }
 
-static void ClearViewVisuals(UIView *v) {
+static BOOL LooksLikeBar(UIView *v) {
+    if (!v) return NO;
+
+    if ([v isKindOfClass:UITabBar.class]) return YES;
+
+    return NameHas(v, @"TabBar") ||
+           NameHas(v, @"BarView") ||
+           NameHas(v, @"LiquidGlass") ||
+           NameHas(v, @"Glass");
+}
+
+static void MakeClear(UIView *v) {
     if (!v) return;
     v.backgroundColor = UIColor.clearColor;
     v.opaque = NO;
 }
 
-/* ---------- Remove tab bar backdrop/background layers ---------- */
-
-static void ClearTabBarBackdropTree(UIView *root) {
-    if (!root) return;
-
-    for (UIView *v in [root.subviews copy]) {
-        BOOL isBackdrop =
-            NameHas(v, @"BarBackground") ||
-            NameHas(v, @"Backdrop") ||
-            NameHas(v, @"VisualEffect") ||
-            NameHas(v, @"BackgroundExtension") ||
-            NameHas(v, @"BackgroundView");
-
-        if (isBackdrop) {
-            ClearViewVisuals(v);
-
-            /*
-             Don't hide everything blindly because some iOS 26 glass
-             internals may be needed for the actual glass appearance.
-             Instead clear the backing color and opacity.
-            */
-            if ([v isKindOfClass:UIVisualEffectView.class]) {
-                UIVisualEffectView *ev = (UIVisualEffectView *)v;
-                ev.backgroundColor = UIColor.clearColor;
-                ev.contentView.backgroundColor = UIColor.clearColor;
-            }
-        }
-
-        ClearTabBarBackdropTree(v);
-    }
-}
-
-static void ConfigureFloatingGlass(UITabBar *tab) {
+static void ConfigureGlass(UITabBar *tab) {
     if (!tab) return;
 
-    ClearViewVisuals(tab);
+    MakeClear(tab);
     tab.translucent = YES;
 
     if (@available(iOS 15.0, *)) {
@@ -62,45 +40,26 @@ static void ConfigureFloatingGlass(UITabBar *tab) {
         a.backgroundColor = UIColor.clearColor;
         a.backgroundEffect = nil;
         a.shadowColor = UIColor.clearColor;
+
         tab.standardAppearance = a;
         tab.scrollEdgeAppearance = a;
     }
-
-    ClearTabBarBackdropTree(tab);
 }
 
 static void TabLayout(UITabBar *self, SEL _cmd) {
     if (orig_tab_layout) {
         ((void(*)(id,SEL))orig_tab_layout)(self,_cmd);
     }
-    ConfigureFloatingGlass(self);
+    ConfigureGlass(self);
 }
 
-/* ---------- Extend selected controller to full tab controller bounds ---------- */
-
-static UIViewController *RealContentController(UIViewController *vc) {
-    if (!vc) return nil;
-
-    if ([vc isKindOfClass:UINavigationController.class]) {
-        UINavigationController *nav = (UINavigationController *)vc;
-        if (nav.topViewController) return nav.topViewController;
-    }
-
-    if ([vc isKindOfClass:UISplitViewController.class]) {
-        UISplitViewController *split = (UISplitViewController *)vc;
-        if (split.viewControllers.count) return split.viewControllers.lastObject;
-    }
-
-    return vc;
-}
-
-static UIScrollView *FindLargestScrollView(UIView *root) {
+static UIScrollView *LargestScrollView(UIView *root) {
     if (!root) return nil;
 
-    __block UIScrollView *best = nil;
-    __block CGFloat bestArea = 0;
+    UIScrollView *best = nil;
+    CGFloat bestArea = 0;
 
-    NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:root];
+    NSMutableArray *stack = [NSMutableArray arrayWithObject:root];
 
     while (stack.count) {
         UIView *v = stack.lastObject;
@@ -109,8 +68,8 @@ static UIScrollView *FindLargestScrollView(UIView *root) {
         if ([v isKindOfClass:UIScrollView.class]) {
             CGFloat area = v.bounds.size.width * v.bounds.size.height;
             if (area > bestArea) {
-                best = (UIScrollView *)v;
                 bestArea = area;
+                best = (UIScrollView *)v;
             }
         }
 
@@ -122,192 +81,268 @@ static UIScrollView *FindLargestScrollView(UIView *root) {
     return best;
 }
 
-static void ExtendChildToBottom(UIView *child, UIView *parent) {
-    if (!child || !parent) return;
+static void ExtendViewToParentBottom(UIView *v) {
+    if (!v || !v.superview) return;
 
-    CGRect f = child.frame;
-    CGFloat parentBottom = parent.bounds.origin.y + parent.bounds.size.height;
-    CGFloat childTop = f.origin.y;
+    UIView *p = v.superview;
 
-    CGFloat wantedHeight = parentBottom - childTop;
+    CGRect f = v.frame;
+    CGFloat parentBottom = p.bounds.origin.y + p.bounds.size.height;
+    CGFloat wantedHeight = parentBottom - f.origin.y;
 
     if (wantedHeight > 0 && f.size.height < wantedHeight) {
         f.size.height = wantedHeight;
-        child.frame = f;
+        v.frame = f;
     }
 
-    child.autoresizingMask |= UIViewAutoresizingFlexibleHeight |
-                              UIViewAutoresizingFlexibleWidth;
+    v.autoresizingMask |= UIViewAutoresizingFlexibleHeight |
+                          UIViewAutoresizingFlexibleWidth;
 }
 
-static void ClearPossibleBackdropSiblings(UITabBarController *tc) {
-    if (!tc || !tc.view) return;
+/*
+  Main MKTabBar fix:
+  - clear only the controller/container backgrounds
+  - extend content containers to the real bottom
+  - do NOT resize/hide the actual tab bar
+*/
+static void FixMKHierarchy(UIViewController *vc) {
+    if (!vc || !vc.view) return;
 
-    UITabBar *tab = tc.tabBar;
-    UIWindow *w = tc.view.window;
-    if (!w) return;
+    UIView *root = vc.view;
 
-    CGRect tabFrame = [tab convertRect:tab.bounds toView:w];
-    CGFloat tabTop = tabFrame.origin.y;
+    vc.additionalSafeAreaInsets = UIEdgeInsetsZero;
+    vc.edgesForExtendedLayout = UIRectEdgeAll;
+    vc.extendedLayoutIncludesOpaqueBars = YES;
+
+    MakeClear(root);
+
+    UIWindow *window = root.window;
+    CGFloat screenBottom = root.bounds.origin.y + root.bounds.size.height;
 
     /*
-     Clear only non-interactive wide views occupying the lower region.
-     This targets the opaque/backdrop container behind the floating tab bar
-     while leaving controls and scroll views alone.
+      Direct children are especially important in MKTabBarViewController:
+      one is usually the content/container, another is the bar.
     */
-    NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:w];
-
-    while (stack.count) {
-        UIView *v = stack.lastObject;
-        [stack removeLastObject];
-
-        if (v == tab || v == tc.view) {
-            for (UIView *sv in v.subviews) [stack addObject:sv];
+    for (UIView *child in [root.subviews copy]) {
+        if (LooksLikeBar(child)) {
+            if ([child isKindOfClass:UITabBar.class]) {
+                ConfigureGlass((UITabBar *)child);
+            }
             continue;
         }
 
-        if ([v isKindOfClass:UIControl.class] ||
-            [v isKindOfClass:UIScrollView.class]) {
-            for (UIView *sv in v.subviews) [stack addObject:sv];
-            continue;
-        }
+        CGRect f = child.frame;
 
-        CGRect r = [v convertRect:v.bounds toView:w];
-        CGFloat maxY = r.origin.y + r.size.height;
-        CGFloat screenBottom = w.bounds.origin.y + w.bounds.size.height;
+        BOOL wide = f.size.width >= root.bounds.size.width * 0.80;
+        BOOL contentLike =
+            [child isKindOfClass:UIScrollView.class] ||
+            NameHas(child, @"Container") ||
+            NameHas(child, @"Content") ||
+            NameHas(child, @"Transition") ||
+            NameHas(child, @"Wrapper") ||
+            NameHas(child, @"View");
 
-        BOOL wide = r.size.width >= w.bounds.size.width * 0.92;
-        BOOL lowerRegion = r.origin.y <= tabTop + 20.0 &&
-                           maxY >= tabTop - 120.0;
-        BOOL reachesBottom = maxY >= screenBottom - 4.0;
-        BOOL looksBackdrop =
-            NameHas(v, @"Backdrop") ||
-            NameHas(v, @"Background") ||
-            NameHas(v, @"Container") ||
-            NameHas(v, @"Extension");
+        if (wide && contentLike) {
+            CGFloat wantedHeight = screenBottom - f.origin.y;
 
-        if (wide && lowerRegion && reachesBottom &&
-            (looksBackdrop || !v.userInteractionEnabled)) {
-            ClearViewVisuals(v);
-        }
+            if (wantedHeight > 0 && f.size.height < wantedHeight) {
+                f.size.height = wantedHeight;
+                child.frame = f;
+            }
 
-        for (UIView *sv in v.subviews) {
-            [stack addObject:sv];
+            child.autoresizingMask |= UIViewAutoresizingFlexibleHeight |
+                                      UIViewAutoresizingFlexibleWidth;
+
+            if (!LooksLikeBar(child)) {
+                MakeClear(child);
+            }
         }
     }
-}
-
-static void ExtendPageBehindTab(UITabBarController *tc) {
-    if (!tc) return;
-
-    UIViewController *selected = tc.selectedViewController;
-    UIViewController *content = RealContentController(selected);
-    if (!selected || !content) return;
 
     /*
-     Remove extra bottom safe area reservation on both container and page.
+      Extend child controller views too. This is safer than touching all
+      UIViewControllers globally because it is scoped to MKTabBarVC's children.
     */
-    selected.additionalSafeAreaInsets = UIEdgeInsetsZero;
-    content.additionalSafeAreaInsets = UIEdgeInsetsZero;
+    for (UIViewController *childVC in vc.childViewControllers) {
+        childVC.additionalSafeAreaInsets = UIEdgeInsetsZero;
+        childVC.edgesForExtendedLayout = UIRectEdgeAll;
+        childVC.extendedLayoutIncludesOpaqueBars = YES;
 
-    selected.edgesForExtendedLayout = UIRectEdgeAll;
-    selected.extendedLayoutIncludesOpaqueBars = YES;
-    content.edgesForExtendedLayout = UIRectEdgeAll;
-    content.extendedLayoutIncludesOpaqueBars = YES;
+        if (!childVC.view) continue;
 
-    ClearViewVisuals(tc.view);
-    if (selected.view) {
-        ExtendChildToBottom(selected.view, tc.view);
-    }
+        ExtendViewToParentBottom(childVC.view);
 
-    if (content.view) {
-        ClearViewVisuals(content.view);
-
-        if (content.view.superview) {
-            ExtendChildToBottom(content.view, content.view.superview);
-        }
-
-        UIScrollView *scroll = FindLargestScrollView(content.view);
+        UIScrollView *scroll = LargestScrollView(childVC.view);
 
         if (scroll && scroll.superview) {
-            ExtendChildToBottom(scroll, scroll.superview);
+            ExtendViewToParentBottom(scroll);
 
             /*
-             Keep the content itself under the bar.
-             The extra contentInset prevents the last item from being
-             impossible to reach, but the background still continues behind.
+              Keep bottom items reachable while background/content extends
+              under the floating bar.
             */
-            UIEdgeInsets inset = scroll.contentInset;
-            CGFloat barH = tc.tabBar.bounds.size.height;
-            CGFloat safeB = tc.view.safeAreaInsets.bottom;
+            CGFloat barHeight = 0;
 
-            if (inset.bottom < barH + safeB) {
-                inset.bottom = barH + safeB;
+            for (UIView *v in root.subviews) {
+                if (LooksLikeBar(v)) {
+                    if (v.bounds.size.height > barHeight) {
+                        barHeight = v.bounds.size.height;
+                    }
+                }
+            }
+
+            if (barHeight < 44.0) barHeight = 88.0;
+
+            UIEdgeInsets inset = scroll.contentInset;
+            if (inset.bottom < barHeight) {
+                inset.bottom = barHeight;
                 scroll.contentInset = inset;
             }
 
             if (@available(iOS 13.0, *)) {
-                UIEdgeInsets vi = scroll.verticalScrollIndicatorInsets;
-                vi.bottom = barH + safeB;
-                scroll.verticalScrollIndicatorInsets = vi;
+                UIEdgeInsets ind = scroll.verticalScrollIndicatorInsets;
+                ind.bottom = barHeight;
+                scroll.verticalScrollIndicatorInsets = ind;
             }
         }
     }
 
-    ConfigureFloatingGlass(tc.tabBar);
-    ClearPossibleBackdropSiblings(tc);
+    /*
+      Clear only background-ish lower siblings inside MKTabBar root.
+      This specifically attacks the large opaque reserve behind the bar.
+    */
+    for (UIView *v in [root.subviews copy]) {
+        if (LooksLikeBar(v)) continue;
 
-    [tc.view bringSubviewToFront:tc.tabBar];
-}
+        CGRect r = v.frame;
+        CGFloat maxY = r.origin.y + r.size.height;
 
-static void TabVCLayout(UITabBarController *self, SEL _cmd) {
-    if (inherited_tabvc_layout) {
-        ((void(*)(id,SEL))inherited_tabvc_layout)(self,_cmd);
+        BOOL lower = maxY >= screenBottom - 4.0;
+        BOOL wide = r.size.width >= root.bounds.size.width * 0.90;
+        BOOL bgLike =
+            NameHas(v, @"Background") ||
+            NameHas(v, @"Backdrop") ||
+            NameHas(v, @"Extension");
+
+        if (lower && wide && bgLike) {
+            MakeClear(v);
+        }
     }
 
-    ExtendPageBehindTab(self);
+    /*
+      Keep all detected bars above content after resizing.
+    */
+    for (UIView *v in [root.subviews copy]) {
+        if (LooksLikeBar(v)) {
+            [root bringSubviewToFront:v];
+        }
+    }
+
+    if (window) {
+        [window setNeedsLayout];
+    }
+}
+
+static void MKLayout(id self, SEL _cmd) {
+    if (orig_mk_layout) {
+        ((void(*)(id,SEL))orig_mk_layout)(self,_cmd);
+    }
+
+    FixMKHierarchy((UIViewController *)self);
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        ExtendPageBehindTab(self);
+        FixMKHierarchy((UIViewController *)self);
     });
 }
 
-/* ---------- Safe per-class override ---------- */
+static void MKSafeAreaChanged(id self, SEL _cmd) {
+    if (orig_mk_safearea) {
+        ((void(*)(id,SEL))orig_mk_safearea)(self,_cmd);
+    }
+
+    UIViewController *vc = (UIViewController *)self;
+    vc.additionalSafeAreaInsets = UIEdgeInsetsZero;
+
+    FixMKHierarchy(vc);
+}
+
+static void InstallOverride(Class cls,
+                            SEL sel,
+                            IMP replacement,
+                            IMP *originalOut) {
+    if (!cls) return;
+
+    Method inherited = class_getInstanceMethod(cls, sel);
+    if (!inherited) return;
+
+    IMP inheritedIMP = method_getImplementation(inherited);
+    const char *types = method_getTypeEncoding(inherited);
+
+    /*
+      First try to add an override owned by MKTabBarViewController.
+      This avoids mutating UIViewController globally if the method is inherited.
+    */
+    if (class_addMethod(cls, sel, replacement, types)) {
+        if (originalOut) *originalOut = inheritedIMP;
+        return;
+    }
+
+    /*
+      If the class already owns the method, replace ONLY the method in the
+      class's own method list.
+    */
+    unsigned int count = 0;
+    Method *methods = class_copyMethodList(cls, &count);
+
+    for (unsigned int i=0; i<count; i++) {
+        if (method_getName(methods[i]) == sel) {
+            if (originalOut) {
+                *originalOut = method_getImplementation(methods[i]);
+            }
+            method_setImplementation(methods[i], replacement);
+            break;
+        }
+    }
+
+    free(methods);
+}
 
 __attribute__((constructor))
-static void InitV7(void) {
+static void InitMKTabBarFixV8(void) {
     @autoreleasepool {
-        Method tm = class_getInstanceMethod(UITabBar.class,
-                                            @selector(layoutSubviews));
-        if (tm) {
-            orig_tab_layout = method_getImplementation(tm);
-            method_setImplementation(tm, (IMP)TabLayout);
+        /*
+          Actual class found in Tarab:
+          MKTabBarViewController
+        */
+        Class mk = objc_getClass("MKTabBarViewController");
+
+        if (mk) {
+            InstallOverride(
+                mk,
+                @selector(viewDidLayoutSubviews),
+                (IMP)MKLayout,
+                &orig_mk_layout
+            );
+
+            InstallOverride(
+                mk,
+                @selector(viewSafeAreaInsetsDidChange),
+                (IMP)MKSafeAreaChanged,
+                &orig_mk_safearea
+            );
         }
 
-        Class tc = UITabBarController.class;
-        SEL sel = @selector(viewDidLayoutSubviews);
-        Method inherited = class_getInstanceMethod(tc, sel);
+        /*
+          Preserve the glass appearance of the system UITabBar itself.
+        */
+        Method tabLayout = class_getInstanceMethod(
+            UITabBar.class,
+            @selector(layoutSubviews)
+        );
 
-        if (inherited) {
-            inherited_tabvc_layout = method_getImplementation(inherited);
-            const char *types = method_getTypeEncoding(inherited);
-
-            if (!class_addMethod(tc, sel, (IMP)TabVCLayout, types)) {
-                unsigned int count = 0;
-                Method *methods = class_copyMethodList(tc, &count);
-
-                for (unsigned int i=0; i<count; i++) {
-                    if (method_getName(methods[i]) == sel) {
-                        inherited_tabvc_layout =
-                            method_getImplementation(methods[i]);
-                        method_setImplementation(methods[i],
-                                                 (IMP)TabVCLayout);
-                        break;
-                    }
-                }
-
-                free(methods);
-            }
+        if (tabLayout) {
+            orig_tab_layout = method_getImplementation(tabLayout);
+            method_setImplementation(tabLayout, (IMP)TabLayout);
         }
     }
 }

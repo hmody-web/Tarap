@@ -1,14 +1,14 @@
 workflows:
-  tarab-tab-backdrop-v7:
-    name: Build Tarab Tab Backdrop Fix V7
+  tarab-mk-tabbar-v8:
+    name: Build Tarab MKTabBar Fix V8
     instance_type: mac_mini_m2
     max_build_duration: 30
 
     scripts:
-      - name: Build V7
+      - name: Build MKTabBar V8
         script: |
           chmod +x build_and_merge.sh inject_dylib.py
           ./build_and_merge.sh
 
     artifacts:
-      - "Tarab_TabBackdropFix_V7.zip"
+      - "Tarab_MKTabBarFix_V8.zip"

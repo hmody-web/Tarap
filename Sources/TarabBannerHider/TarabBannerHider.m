@@ -1362,35 +1362,145 @@ static void TRBSourcesHeaderEntry(void) {
 }
 
 
+
+#pragma mark - Persistent Runtime Settings
+
+@interface TRBRuntimeSettings : NSObject
+@property(nonatomic) CGFloat targetX;
+@property(nonatomic) CGFloat targetY;
+@property(nonatomic) CGFloat targetWidth;
+@property(nonatomic) CGFloat targetHeight;
++ (instancetype)shared;
+@end
+
+@implementation TRBRuntimeSettings
+
++ (instancetype)shared {
+    static TRBRuntimeSettings *obj = nil;
+    static dispatch_once_t onceToken;
+
+    dispatch_once(&onceToken, ^{
+        obj = [TRBRuntimeSettings new];
+
+        NSUserDefaults *d = NSUserDefaults.standardUserDefaults;
+
+        if ([d objectForKey:@"TRB_targetX"] == nil) {
+            [d setDouble:0.0 forKey:@"TRB_targetX"];
+        }
+        if ([d objectForKey:@"TRB_targetY"] == nil) {
+            [d setDouble:-160.0 forKey:@"TRB_targetY"];
+        }
+        if ([d objectForKey:@"TRB_targetWidth"] == nil) {
+            [d setDouble:390.0 forKey:@"TRB_targetWidth"];
+        }
+        if ([d objectForKey:@"TRB_targetHeight"] == nil) {
+            [d setDouble:1200.0 forKey:@"TRB_targetHeight"];
+        }
+
+        obj->_targetX = [d doubleForKey:@"TRB_targetX"];
+        obj->_targetY = [d doubleForKey:@"TRB_targetY"];
+        obj->_targetWidth = [d doubleForKey:@"TRB_targetWidth"];
+        obj->_targetHeight = [d doubleForKey:@"TRB_targetHeight"];
+    });
+
+    return obj;
+}
+
+- (void)setTargetX:(CGFloat)value {
+    _targetX = value;
+    [NSUserDefaults.standardUserDefaults setDouble:value forKey:@"TRB_targetX"];
+}
+
+- (void)setTargetY:(CGFloat)value {
+    _targetY = value;
+    [NSUserDefaults.standardUserDefaults setDouble:value forKey:@"TRB_targetY"];
+}
+
+- (void)setTargetWidth:(CGFloat)value {
+    _targetWidth = value;
+    [NSUserDefaults.standardUserDefaults setDouble:value forKey:@"TRB_targetWidth"];
+}
+
+- (void)setTargetHeight:(CGFloat)value {
+    _targetHeight = value;
+    [NSUserDefaults.standardUserDefaults setDouble:value forKey:@"TRB_targetHeight"];
+}
+
+@end
+
 #pragma mark - v1.9 Force SwiftUI AnyView hosting frame
 
+static UIViewController *TRBNearestViewControllerForView(UIView *view) {
+    UIResponder *r = view;
+    while (r) {
+        r = r.nextResponder;
+        if ([r isKindOfClass:UIViewController.class]) {
+            return (UIViewController *)r;
+        }
+    }
+    return nil;
+}
+
+static BOOL TRBControllerLooksLikeTarabAnyViewHost(UIViewController *vc) {
+    if (!vc) return NO;
+
+    NSString *name = NSStringFromClass(vc.class) ?: @"";
+    NSString *desc = [vc description] ?: @"";
+
+    BOOL tarab =
+        [name containsString:@"Tarab"] ||
+        [desc containsString:@"Tarab"];
+
+    BOOL customHost =
+        [name containsString:@"CustomUIHostingController"] ||
+        [desc containsString:@"CustomUIHostingController"];
+
+    BOOL anyView =
+        [name containsString:@"AnyView"] ||
+        [desc containsString:@"AnyView"];
+
+    // FLEX previously showed:
+    // Tarab.CustomUIHostingController<SwiftUI.AnyView>
+    return tarab && customHost && anyView;
+}
+
 static BOOL TRBIsTargetAnyViewHostingView(UIView *view) {
-    if (!view) return NO;
+    if (!view || !view.window) return NO;
 
-    NSString *name = NSStringFromClass(view.class);
-    NSString *desc = [view description] ?: @"";
-
-    BOOL classMatch =
-        ([name containsString:@"_UIHostingView"] ||
-         [desc containsString:@"_UIHostingView"]) &&
-        ([name containsString:@"AnyView"] ||
-         [desc containsString:@"AnyView"]);
-
-    if (!classMatch) return NO;
-
-    // Target only the large page host seen in FLEX.
     CGRect f = view.frame;
     CGRect b = view.bounds;
 
     BOOL widthMatch =
-        fabs(f.size.width - 390.0) < 8.0 ||
-        fabs(b.size.width - 390.0) < 8.0;
+        fabs(f.size.width - 390.0) < 12.0 ||
+        fabs(b.size.width - 390.0) < 12.0;
 
     BOOL tallEnough =
         f.size.height > 900.0 ||
         b.size.height > 900.0;
 
-    return widthMatch && tallEnough;
+    BOOL yLooksRight =
+        f.origin.y < -120.0 ||
+        fabs(f.origin.y + 158.0) < 25.0 ||
+        fabs(f.origin.y + 160.0) < 25.0;
+
+    UIViewController *nearest = TRBNearestViewControllerForView(view);
+    BOOL controllerMatch = TRBControllerLooksLikeTarabAnyViewHost(nearest);
+
+    if (controllerMatch && widthMatch && tallEnough) {
+        return YES;
+    }
+
+    // Fallback to SwiftUI hosting runtime name if present.
+    NSString *name = NSStringFromClass(view.class) ?: @"";
+    NSString *desc = [view description] ?: @"";
+
+    BOOL hostingName =
+        ([name containsString:@"_UIHostingView"] ||
+         [desc containsString:@"_UIHostingView"]) &&
+        ([name containsString:@"AnyView"] ||
+         [desc containsString:@"AnyView"]);
+
+    return hostingName && widthMatch && tallEnough && yLooksRight;
 }
 
 static void TRBMarkAndForceTargetHostingView(UIView *view) {
@@ -1398,7 +1508,7 @@ static void TRBMarkAndForceTargetHostingView(UIView *view) {
 
     view.accessibilityIdentifier = @"TRBSourcesMainHostingView";
 
-    CGRect wanted = CGRectMake(0.0, -160.0, 390.0, 1200.0);
+    CGRect wanted = TRBForcedAnyViewFrame();
 
     if (!CGRectEqualToRect(view.frame, wanted)) {
         view.frame = wanted;
@@ -1406,7 +1516,8 @@ static void TRBMarkAndForceTargetHostingView(UIView *view) {
 
     CGRect b = view.bounds;
     b.origin = CGPointZero;
-    b.size = CGSizeMake(390.0, 1200.0);
+    TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
+        b.size = CGSizeMake(cfg.targetWidth, cfg.targetHeight);
 
     if (!CGRectEqualToRect(view.bounds, b)) {
         view.bounds = b;
@@ -1414,7 +1525,14 @@ static void TRBMarkAndForceTargetHostingView(UIView *view) {
 }
 
 static CGRect TRBForcedAnyViewFrame(void) {
-    return CGRectMake(0.0, -160.0, 390.0, 1200.0);
+    TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
+
+    return CGRectMake(
+        cfg.targetX,
+        cfg.targetY,
+        cfg.targetWidth,
+        cfg.targetHeight
+    );
 }
 
 static IMP TRBOrigSetFrame_v19 = NULL;
@@ -1432,7 +1550,8 @@ static void TRBSetBounds_v19(UIView *self, SEL _cmd, CGRect bounds) {
     if (TRBIsTargetAnyViewHostingView(self)) {
         self.accessibilityIdentifier = @"TRBSourcesMainHostingView";
         bounds.origin = CGPointZero;
-        bounds.size = CGSizeMake(390.0, 1200.0);
+        TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
+        bounds.size = CGSizeMake(cfg.targetWidth, cfg.targetHeight);
     }
 
     ((void(*)(id,SEL,CGRect))TRBOrigSetBounds_v19)(self, _cmd, bounds);
@@ -1457,7 +1576,8 @@ static void TRBLayout_v19(UIView *self, SEL _cmd) {
 
         CGRect b = self.bounds;
         b.origin = CGPointZero;
-        b.size = CGSizeMake(390.0, 1200.0);
+        TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
+        b.size = CGSizeMake(cfg.targetWidth, cfg.targetHeight);
 
         if (!CGRectEqualToRect(self.bounds, b)) {
             ((void(*)(id,SEL,CGRect))TRBOrigSetBounds_v19)(
@@ -1512,6 +1632,14 @@ static void TRBScanAndForceHostingViews(void) {
                 if (TRBIsTargetAnyViewHostingView(v)) {
                     v.accessibilityIdentifier = @"TRBSourcesMainHostingView";
 
+                    // Also mark a large direct child if SwiftUI wraps the actual content.
+                    for (UIView *sub in v.subviews) {
+                        if (sub.bounds.size.width > 370.0 &&
+                            sub.bounds.size.height > 900.0) {
+                            sub.accessibilityIdentifier = @"TRBSourcesMainHostingContent";
+                        }
+                    }
+
                     CGRect wanted = TRBForcedAnyViewFrame();
 
                     if (TRBOrigSetFrame_v19 &&
@@ -1525,7 +1653,70 @@ static void TRBScanAndForceHostingViews(void) {
 
                     CGRect b = v.bounds;
                     b.origin = CGPointZero;
-                    b.size = CGSizeMake(390.0, 1200.0);
+                    TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
+        b.size = CGSizeMake(cfg.targetWidth, cfg.targetHeight);
+
+                    if (TRBOrigSetBounds_v19 &&
+                        !CGRectEqualToRect(v.bounds, b)) {
+                        ((void(*)(id,SEL,CGRect))TRBOrigSetBounds_v19)(
+                            v,
+                            @selector(setBounds:),
+                            b
+                        );
+                    }
+
+                    UIViewController *vc = TRBNearestViewControllerForView(v);
+                    NSLog(@"[TarabBannerHider] TAGGED HOST %@ VC %@ frame %@",
+                          NSStringFromClass(v.class),
+                          NSStringFromClass(vc.class),
+                          NSStringFromCGRect(v.frame));
+                }
+
+                for (UIView *sub in v.subviews) {
+                    [stack addObject:sub];
+                }
+            }
+        }
+    }
+}
+
+
+static void TRBApplySavedRuntimeFrame(void) {
+    TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
+    CGRect wanted = CGRectMake(
+        cfg.targetX,
+        cfg.targetY,
+        cfg.targetWidth,
+        cfg.targetHeight
+    );
+
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class]) continue;
+
+        for (UIWindow *window in ((UIWindowScene *)scene).windows) {
+            if (window.hidden) continue;
+
+            NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:window];
+
+            while (stack.count) {
+                UIView *v = stack.lastObject;
+                [stack removeLastObject];
+
+                if (TRBIsTargetAnyViewHostingView(v)) {
+                    v.accessibilityIdentifier = @"TRBSourcesMainHostingView";
+
+                    if (TRBOrigSetFrame_v19 &&
+                        !CGRectEqualToRect(v.frame, wanted)) {
+                        ((void(*)(id,SEL,CGRect))TRBOrigSetFrame_v19)(
+                            v,
+                            @selector(setFrame:),
+                            wanted
+                        );
+                    }
+
+                    CGRect b = v.bounds;
+                    b.origin = CGPointZero;
+                    b.size = CGSizeMake(cfg.targetWidth, cfg.targetHeight);
 
                     if (TRBOrigSetBounds_v19 &&
                         !CGRectEqualToRect(v.bounds, b)) {
@@ -1548,15 +1739,19 @@ static void TRBScanAndForceHostingViews(void) {
 __attribute__((constructor))
 static void TRBAnyViewFrameEntry_v19(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
+        // Create settings object immediately so FLEX can find it.
+        (void)[TRBRuntimeSettings shared];
+
         TRBInstallAnyViewFrameForce_v19();
 
-        // Existing SwiftUI host may already be on screen before the hooks run.
+        // Apply persisted values immediately.
         TRBScanAndForceHostingViews();
+        TRBApplySavedRuntimeFrame();
 
-        [NSTimer scheduledTimerWithTimeInterval:0.05
+        [NSTimer scheduledTimerWithTimeInterval:0.02
                                          repeats:YES
                                            block:^(__unused NSTimer *timer) {
-            TRBScanAndForceHostingViews();
+            TRBApplySavedRuntimeFrame();
         }];
     });
 }

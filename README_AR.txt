@@ -135,3 +135,31 @@ v1.10 HOSTING TAG:
 - Existing host views are scanned immediately at startup.
 - Re-scans every 0.05s so FLEX can find the tagged view quickly
   and SwiftUI cannot permanently restore another frame.
+
+v1.11 HOSTING VC MATCH:
+- Stops relying only on _UIHostingView runtime name.
+- Matches the target through its nearest controller:
+  Tarab.CustomUIHostingController<SwiftUI.AnyView>
+- Requires large 390-wide, 900+ high view.
+- Forces frame {{0,-160},{390,1200}}.
+- Adds FLEX identifiers:
+  TRBSourcesMainHostingView
+  TRBSourcesMainHostingContent
+- Scanner repeats every 0.02s.
+
+v1.12 RUNTIME SETTINGS:
+- Adds real Objective-C class TRBRuntimeSettings.
+- FLEX can edit these properties:
+  targetX
+  targetY
+  targetWidth
+  targetHeight
+- Every setter saves immediately to NSUserDefaults.
+- Defaults are:
+  X=0
+  Y=-160
+  Width=390
+  Height=1200
+- Saved values are loaded automatically on every app launch.
+- Frame/bounds are re-applied every 0.02s.
+- SwiftUI cannot permanently restore the previous frame after a saved change.

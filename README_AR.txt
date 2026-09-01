@@ -101,3 +101,14 @@ v5.3.2:
 - Banner is explicitly unhidden on returning to Sources.
 - Still hides in viewWillDisappear and on pushed/presented child pages.
 - Keeps duplicate cleanup, 12pt spacing, X=16 Y=117 W=358 H=180.
+
+v5.4:
+- Keeps all v5.3.2 behavior.
+- Adds accessibility identifiers: TRBBannerCarousel, TRBBannerPage, TRBBannerBackdrop.
+- Banner is restored automatically when returning to Sources, even with custom tab containers.
+- Adds full-width theme-aware background behind banner:
+  x=0, y=117, width=100% of page, height=180.
+  Uses systemBackgroundColor so it follows dark/light appearance automatically.
+- Removes page dots completely from view.
+- Keeps banner frame X=16 Y=117 W=358 H=180.
+- Keeps 12pt spacing and duplicate cleanup.

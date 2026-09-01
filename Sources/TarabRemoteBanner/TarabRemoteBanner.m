@@ -101,6 +101,7 @@ static const CGFloat TRBPageGap = 12.0;
     if (!self) return nil;
 
     self.clipsToBounds = YES;
+    self.accessibilityIdentifier = @"TRBBannerPage";
     self.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     self.layer.cornerRadius = 18.0;
     if (@available(iOS 13.0, *)) self.layer.cornerCurve = kCACornerCurveContinuous;
@@ -336,6 +337,7 @@ static const CGFloat TRBPageGap = 12.0;
     if (!self) return nil;
 
     self.backgroundColor = UIColor.clearColor;
+    self.accessibilityIdentifier = @"TRBBannerCarousel";
     self.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     self.transform = CGAffineTransformIdentity;
 
@@ -353,6 +355,7 @@ static const CGFloat TRBPageGap = 12.0;
     [self addSubview:_scroll];
 
     _dots = [[UIPageControl alloc] initWithFrame:CGRectZero];
+    _dots.hidden = YES;
     _dots.translatesAutoresizingMaskIntoConstraints = NO;
     _dots.hidesForSinglePage = YES;
     _dots.userInteractionEnabled = NO;
@@ -541,6 +544,7 @@ static const CGFloat TRBPageGap = 12.0;
 static BOOL TRBStringContains(NSString *haystack, NSString *needle);
 static BOOL TRBIsSourcesPage(UIViewController *vc);
 static char kTRBCarouselKey;
+static char kTRBBackdropKey;
 
 static BOOL TRBControllerIsActuallyVisible(UIViewController *vc) {
     if (!vc || !vc.isViewLoaded || !vc.view.window) return NO;
@@ -609,10 +613,17 @@ static BOOL TRBIsStrictSourcesRoot(UIViewController *vc) {
 
 static void TRBHideCarouselForController(UIViewController *vc) {
     TRBBannerCarousel *carousel = objc_getAssociatedObject(vc, &kTRBCarouselKey);
-    if (!carousel) return;
-    carousel.hidden = YES;
-    [carousel.timer invalidate];
-    carousel.timer = nil;
+    UIView *backdrop = objc_getAssociatedObject(vc, &kTRBBackdropKey);
+
+    if (carousel) {
+        carousel.hidden = YES;
+        [carousel.timer invalidate];
+        carousel.timer = nil;
+    }
+
+    if (backdrop) {
+        backdrop.hidden = YES;
+    }
 }
 
 static void TRBRemoveDuplicateCarouselsInView(UIView *root, TRBBannerCarousel *keep) {
@@ -632,6 +643,50 @@ static void TRBRemoveDuplicateCarouselsInView(UIView *root, TRBBannerCarousel *k
             }
         }
     }
+}
+
+
+static UIColor *TRBThemeBackgroundColor(void) {
+    if (@available(iOS 13.0, *)) {
+        return UIColor.systemBackgroundColor;
+    }
+    return UIColor.blackColor;
+}
+
+static UIView *TRBEnsureBackdrop(UIViewController *vc) {
+    UIView *backdrop = objc_getAssociatedObject(vc, &kTRBBackdropKey);
+
+    if (!backdrop || backdrop.superview != vc.view) {
+        if (backdrop) [backdrop removeFromSuperview];
+
+        backdrop = [[UIView alloc] initWithFrame:CGRectZero];
+        backdrop.accessibilityIdentifier = @"TRBBannerBackdrop";
+        backdrop.userInteractionEnabled = NO;
+        backdrop.backgroundColor = TRBThemeBackgroundColor();
+        backdrop.layer.zPosition = 9999998.0;
+
+        [vc.view addSubview:backdrop];
+        objc_setAssociatedObject(
+            vc,
+            &kTRBBackdropKey,
+            backdrop,
+            OBJC_ASSOCIATION_RETAIN_NONATOMIC
+        );
+    }
+
+    backdrop.backgroundColor = TRBThemeBackgroundColor();
+    backdrop.frame = CGRectMake(0.0, 117.0, vc.view.bounds.size.width, 180.0);
+    backdrop.layer.zPosition = 9999998.0;
+
+    return backdrop;
+}
+
+static void TRBSetBannerVisibility(UIViewController *vc, BOOL visible) {
+    TRBBannerCarousel *carousel = objc_getAssociatedObject(vc, &kTRBCarouselKey);
+    UIView *backdrop = objc_getAssociatedObject(vc, &kTRBBackdropKey);
+
+    if (carousel) carousel.hidden = !visible;
+    if (backdrop) backdrop.hidden = !visible;
 }
 
 #pragma mark - Installation / page targeting
@@ -727,6 +782,10 @@ static void TRBInstallBannerIntoController(UIViewController *vc) {
         return;
     }
 
+    UIView *backdrop = TRBEnsureBackdrop(vc);
+    backdrop.hidden = NO;
+    [vc.view bringSubviewToFront:backdrop];
+
     TRBBannerCarousel *existing = objc_getAssociatedObject(vc, &kTRBCarouselKey);
     TRBRemoveDuplicateCarouselsInView(vc.view, existing);
 
@@ -734,6 +793,7 @@ static void TRBInstallBannerIntoController(UIViewController *vc) {
         existing.frame = CGRectMake(16.0, 117.0, 358.0, 180.0);
         existing.layer.zPosition = 9999999.0;
         existing.hidden = NO;
+        [vc.view bringSubviewToFront:backdrop];
         [vc.view bringSubviewToFront:existing];
         [existing loadRemoteData];
         return;
@@ -753,6 +813,7 @@ static void TRBInstallBannerIntoController(UIViewController *vc) {
     carousel.layer.zPosition = 9999999.0;
 
     [vc.view addSubview:carousel];
+    [vc.view bringSubviewToFront:backdrop];
     [vc.view bringSubviewToFront:carousel];
     objc_setAssociatedObject(vc, &kTRBCarouselKey, carousel, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     TRBRemoveDuplicateCarouselsInView(vc.view, carousel);
@@ -785,8 +846,10 @@ static void TRBPatchedViewDidLayout(UIViewController *self, SEL _cmd) {
     if (TRBOriginalViewDidLayout) ((void (*)(id, SEL))TRBOriginalViewDidLayout)(self, _cmd);
 
     TRBBannerCarousel *carousel = objc_getAssociatedObject(self, &kTRBCarouselKey);
+    UIView *backdrop = objc_getAssociatedObject(self, &kTRBBackdropKey);
     if (!TRBIsStrictSourcesRoot(self)) {
         if (carousel) carousel.hidden = YES;
+        if (backdrop) backdrop.hidden = YES;
         return;
     }
 
@@ -795,10 +858,20 @@ static void TRBPatchedViewDidLayout(UIViewController *self, SEL _cmd) {
         return;
     }
 
+    if (!backdrop || backdrop.superview != self.view) {
+        backdrop = TRBEnsureBackdrop(self);
+    }
+
+    backdrop.frame = CGRectMake(0.0, 117.0, self.view.bounds.size.width, 180.0);
+    backdrop.backgroundColor = TRBThemeBackgroundColor();
+    backdrop.layer.zPosition = 9999998.0;
+    backdrop.hidden = NO;
+
     carousel.frame = CGRectMake(16.0, 117.0, 358.0, 180.0);
     carousel.layer.zPosition = 9999999.0;
     carousel.hidden = NO;
     TRBRemoveDuplicateCarouselsInView(self.view, carousel);
+    [self.view bringSubviewToFront:backdrop];
     [self.view bringSubviewToFront:carousel];
 }
 
@@ -821,9 +894,67 @@ static void TRBInstallHooks(void) {
     });
 }
 
+
+static NSTimer *TRBVisibilityTimer = nil;
+
+static UIViewController *TRBTopControllerFrom(UIViewController *vc) {
+    if (!vc) return nil;
+
+    if (vc.presentedViewController) {
+        return TRBTopControllerFrom(vc.presentedViewController);
+    }
+
+    if ([vc isKindOfClass:UINavigationController.class]) {
+        return TRBTopControllerFrom(((UINavigationController *)vc).topViewController);
+    }
+
+    if ([vc isKindOfClass:UITabBarController.class]) {
+        return TRBTopControllerFrom(((UITabBarController *)vc).selectedViewController);
+    }
+
+    for (UIViewController *child in vc.children.reverseObjectEnumerator) {
+        if (child.isViewLoaded && child.view.window) {
+            UIViewController *top = TRBTopControllerFrom(child);
+            if (top) return top;
+        }
+    }
+
+    return vc;
+}
+
+static void TRBReconcileVisibility(void) {
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class]) continue;
+        UIWindowScene *ws = (UIWindowScene *)scene;
+
+        for (UIWindow *window in ws.windows) {
+            if (!window.isKeyWindow || !window.rootViewController) continue;
+
+            UIViewController *top = TRBTopControllerFrom(window.rootViewController);
+            if (!top) continue;
+
+            if (TRBIsStrictSourcesRoot(top)) {
+                TRBInstallBannerIntoController(top);
+            }
+        }
+    }
+}
+
+static void TRBStartVisibilityTimer(void) {
+    if (TRBVisibilityTimer) return;
+
+    TRBVisibilityTimer = [NSTimer scheduledTimerWithTimeInterval:0.6
+                                                         repeats:YES
+                                                           block:^(__unused NSTimer *timer) {
+        TRBReconcileVisibility();
+    }];
+    [[NSRunLoop mainRunLoop] addTimer:TRBVisibilityTimer forMode:NSRunLoopCommonModes];
+}
+
 __attribute__((constructor))
 static void TRBConstructor(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         TRBInstallHooks();
+        TRBStartVisibilityTimer();
     });
 }

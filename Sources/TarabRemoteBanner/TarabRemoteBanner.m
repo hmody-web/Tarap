@@ -567,30 +567,44 @@ static BOOL TRBControllerIsActuallyVisible(UIViewController *vc) {
 }
 
 static BOOL TRBIsStrictSourcesRoot(UIViewController *vc) {
-    if (!TRBControllerIsActuallyVisible(vc)) return NO;
+    if (!vc || !vc.isViewLoaded || !vc.view.window) return NO;
+
+    // Must still be the Sources tab/page according to the original proven detector.
     if (!TRBIsSourcesPage(vc)) return NO;
 
-    __block BOOL foundYouTube = NO;
-    __block BOOL foundTrending = NO;
-    NSMutableArray<UIView *> *views = [NSMutableArray arrayWithObject:vc.view];
-    NSUInteger inspected = 0;
+    // A presented controller means another page is visually on top.
+    if (vc.presentedViewController) return NO;
 
-    while (views.count && inspected < 1400) {
-        UIView *v = views.lastObject;
-        [views removeLastObject];
-        inspected++;
+    // If this controller is inside navigation, it must be the visible TOP controller
+    // and also the ROOT controller. Any YouTube / Google / Instagram / Facebook /
+    // TikTok page pushed on top will therefore hide the banner.
+    if (vc.navigationController) {
+        UINavigationController *nav = vc.navigationController;
+        if (nav.topViewController != vc) return NO;
 
-        NSString *text = nil;
-        if ([v isKindOfClass:UILabel.class]) text = ((UILabel *)v).text;
-        else if ([v isKindOfClass:UIButton.class]) text = [((UIButton *)v) titleForState:UIControlStateNormal];
-
-        if (TRBStringContains(text, @"يوتيوب")) foundYouTube = YES;
-        if (TRBStringContains(text, @"ترندات")) foundTrending = YES;
-        if (foundYouTube && foundTrending) return YES;
-
-        for (UIView *sub in v.subviews) [views addObject:sub];
+        if (nav.viewControllers.count > 0 &&
+            nav.viewControllers.firstObject != vc) {
+            return NO;
+        }
     }
-    return NO;
+
+    // If standard UITabBarController is available, Sources must be selected.
+    UITabBarController *tab = vc.tabBarController;
+    if (tab) {
+        UIViewController *selected = tab.selectedViewController;
+
+        if ([selected isKindOfClass:UINavigationController.class]) {
+            UINavigationController *nav = (UINavigationController *)selected;
+            if (nav.topViewController != vc &&
+                nav.viewControllers.firstObject != vc) {
+                return NO;
+            }
+        } else if (selected != vc) {
+            return NO;
+        }
+    }
+
+    return YES;
 }
 
 static void TRBHideCarouselForController(UIViewController *vc) {
@@ -721,7 +735,7 @@ static void TRBInstallBannerIntoController(UIViewController *vc) {
         existing.layer.zPosition = 9999999.0;
         existing.hidden = NO;
         [vc.view bringSubviewToFront:existing];
-        if (!existing.didLoad) [existing loadRemoteData];
+        [existing loadRemoteData];
         return;
     }
 
@@ -748,8 +762,15 @@ static void TRBInstallBannerIntoController(UIViewController *vc) {
 static void TRBPatchedViewDidAppear(UIViewController *self, SEL _cmd, BOOL animated) {
     ((void (*)(id, SEL, BOOL))TRBOriginalViewDidAppear)(self, _cmd, animated);
     dispatch_async(dispatch_get_main_queue(), ^{
-        if (TRBIsStrictSourcesRoot(self)) TRBInstallBannerIntoController(self);
-        else TRBHideCarouselForController(self);
+        if (TRBIsStrictSourcesRoot(self)) {
+            TRBBannerCarousel *carousel = objc_getAssociatedObject(self, &kTRBCarouselKey);
+            if (carousel) {
+                carousel.hidden = NO;
+            }
+            TRBInstallBannerIntoController(self);
+        } else {
+            TRBHideCarouselForController(self);
+        }
     });
 }
 

@@ -92,3 +92,12 @@ v5.3.1 BUILD FIX:
 - Moved kTRBCarouselKey declaration before strict helper usage.
 - Keeps strict Sources-only visibility, duplicate cleanup, 12pt banner spacing,
   and X=16 / Y=117 / W=358 / H=180.
+
+v5.3.2:
+- Fixes banner disappearing completely.
+- Removes the fragile YouTube/Trending text scan.
+- Sources root is detected using the original working Sources detector plus:
+  top/root navigation controller checks and selected tab checks.
+- Banner is explicitly unhidden on returning to Sources.
+- Still hides in viewWillDisappear and on pushed/presented child pages.
+- Keeps duplicate cleanup, 12pt spacing, X=16 Y=117 W=358 H=180.

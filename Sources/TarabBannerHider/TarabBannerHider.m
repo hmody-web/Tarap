@@ -1503,6 +1503,8 @@ static BOOL TRBIsTargetAnyViewHostingView(UIView *view) {
     return hostingName && widthMatch && tallEnough && yLooksRight;
 }
 
+static CGRect TRBForcedAnyViewFrame(void);
+
 static void TRBMarkAndForceTargetHostingView(UIView *view) {
     if (!TRBIsTargetAnyViewHostingView(view)) return;
 

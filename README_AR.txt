@@ -163,3 +163,10 @@ v1.12 RUNTIME SETTINGS:
 - Saved values are loaded automatically on every app launch.
 - Frame/bounds are re-applied every 0.02s.
 - SwiftUI cannot permanently restore the previous frame after a saved change.
+
+v1.12.1 BUILD FIX:
+- Added forward declaration:
+  static CGRect TRBForcedAnyViewFrame(void);
+- Fixes implicit-function-declaration build failure.
+- No behavior changes.
+- Persistent FLEX runtime settings remain intact.

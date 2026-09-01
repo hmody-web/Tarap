@@ -9,6 +9,52 @@ static const CGFloat TRBContentHeight = 180.0;
 static const CGFloat TRBGap = 0.0;
 static const CGFloat TRBPageGap = 12.0;
 
+static NSString *TRBCacheDirectory(void) {
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(
+        NSCachesDirectory,
+        NSUserDomainMask,
+        YES
+    );
+
+    NSString *base = paths.firstObject ?: NSTemporaryDirectory();
+    NSString *dir = [base stringByAppendingPathComponent:@"TarabRemoteBanner"];
+
+    [[NSFileManager defaultManager]
+        createDirectoryAtPath:dir
+        withIntermediateDirectories:YES
+        attributes:nil
+        error:nil];
+
+    return dir;
+}
+
+static NSString *TRBBannerJSONCachePath(void) {
+    return [TRBCacheDirectory() stringByAppendingPathComponent:@"banners.json"];
+}
+
+static NSString *TRBSafeCacheNameForURL(NSString *urlString) {
+    if (urlString.length == 0) return @"empty";
+
+    NSData *data = [urlString dataUsingEncoding:NSUTF8StringEncoding];
+    NSString *base64 = [data base64EncodedStringWithOptions:0];
+
+    NSCharacterSet *unsafe = [NSCharacterSet characterSetWithCharactersInString:@"/+=\n\r"];
+    NSArray<NSString *> *parts = [base64 componentsSeparatedByCharactersInSet:unsafe];
+    NSString *safe = [parts componentsJoinedByString:@"_"];
+
+    if (safe.length > 180) {
+        safe = [safe substringToIndex:180];
+    }
+
+    return safe;
+}
+
+static NSString *TRBImageCachePath(NSString *urlString) {
+    NSString *name = [TRBSafeCacheNameForURL(urlString) stringByAppendingPathExtension:@"img"];
+    return [TRBCacheDirectory() stringByAppendingPathComponent:name];
+}
+
+
 #pragma mark - Model
 
 @interface TRBBannerItem : NSObject
@@ -57,6 +103,17 @@ static const CGFloat TRBPageGap = 12.0;
         return;
     }
 
+    // Persistent disk cache: use it immediately, even when offline.
+    NSString *diskPath = TRBImageCachePath(urlString);
+    NSData *diskData = [NSData dataWithContentsOfFile:diskPath];
+    UIImage *diskImage = diskData.length ? [UIImage imageWithData:diskData] : nil;
+
+    if (diskImage) {
+        [self.cache setObject:diskImage forKey:urlString];
+        if (completion) completion(diskImage);
+        return;
+    }
+
     NSURL *url = [NSURL URLWithString:urlString];
     if (!url) {
         if (completion) completion(nil);
@@ -67,13 +124,19 @@ static const CGFloat TRBPageGap = 12.0;
         dataTaskWithURL:url
         completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
             UIImage *image = data.length ? [UIImage imageWithData:data] : nil;
+
             if (image) {
                 [[TRBImageLoader shared].cache setObject:image forKey:urlString];
+
+                // Save raw image bytes persistently for future offline use.
+                [data writeToFile:TRBImageCachePath(urlString) atomically:YES];
             }
+
             dispatch_async(dispatch_get_main_queue(), ^{
                 if (completion) completion(image);
             });
         }];
+
     [task resume];
 }
 
@@ -327,10 +390,69 @@ static const CGFloat TRBPageGap = 12.0;
 @property(nonatomic, strong) NSArray<TRBBannerItem *> *items;
 @property(nonatomic, strong) NSTimer *timer;
 @property(nonatomic) BOOL didLoad;
+@property(nonatomic) NSInteger currentPage;
+@property(nonatomic) BOOL networkRequested;
 - (void)loadRemoteData;
 @end
 
 @implementation TRBBannerCarousel
+
+- (NSArray<TRBBannerItem *> *)parseBannerData:(NSData *)data {
+    if (!data.length) return @[];
+
+    NSError *jsonError = nil;
+    id obj = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError];
+    if (jsonError || ![obj isKindOfClass:NSDictionary.class]) return @[];
+
+    NSArray *raw = ((NSDictionary *)obj)[@"banners"];
+    if (![raw isKindOfClass:NSArray.class]) return @[];
+
+    NSMutableArray<TRBBannerItem *> *parsed = [NSMutableArray array];
+
+    for (id rowObj in raw) {
+        if (![rowObj isKindOfClass:NSDictionary.class]) continue;
+        NSDictionary *row = (NSDictionary *)rowObj;
+
+        id enabled = row[@"enabled"];
+        if ([enabled respondsToSelector:@selector(boolValue)] && ![enabled boolValue]) continue;
+
+        TRBBannerItem *item = [TRBBannerItem new];
+        item.itemID = [row[@"id"] description] ?: @"";
+        item.title = [row[@"title"] isKindOfClass:NSString.class] ? row[@"title"] : @"";
+        item.descText = [row[@"description"] isKindOfClass:NSString.class] ? row[@"description"] : @"";
+        item.coverURL = [row[@"cover_url"] isKindOfClass:NSString.class] ? row[@"cover_url"] : @"";
+        item.iconURL = [row[@"icon_url"] isKindOfClass:NSString.class] ? row[@"icon_url"] : @"";
+        item.downloadURL = [row[@"download_url"] isKindOfClass:NSString.class] ? row[@"download_url"] : @"";
+        item.sortOrder = [row[@"sort_order"] respondsToSelector:@selector(integerValue)]
+            ? [row[@"sort_order"] integerValue]
+            : 0;
+
+        if (item.coverURL.length || item.title.length) {
+            [parsed addObject:item];
+        }
+    }
+
+    [parsed sortUsingComparator:^NSComparisonResult(TRBBannerItem *a, TRBBannerItem *b) {
+        if (a.sortOrder < b.sortOrder) return NSOrderedAscending;
+        if (a.sortOrder > b.sortOrder) return NSOrderedDescending;
+        return NSOrderedSame;
+    }];
+
+    return parsed;
+}
+
+- (BOOL)applyCachedDataImmediately {
+    NSData *cachedData = [NSData dataWithContentsOfFile:TRBBannerJSONCachePath()];
+    NSArray<TRBBannerItem *> *cachedItems = [self parseBannerData:cachedData];
+
+    if (cachedItems.count == 0) return NO;
+
+    [self applyItems:cachedItems];
+    self.didLoad = YES;
+    self.hidden = NO;
+    return YES;
+}
+
 
 - (instancetype)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
@@ -353,27 +475,14 @@ static const CGFloat TRBPageGap = 12.0;
     _scroll.directionalLockEnabled = YES;
     _scroll.alwaysBounceHorizontal = YES;
     [self addSubview:_scroll];
+    _dots = nil; // No UIPageControl at all; removes _UIPageControlIndicatorContentView.
 
-    _dots = [[UIPageControl alloc] initWithFrame:CGRectZero];
-    _dots.hidden = YES;
-    _dots.translatesAutoresizingMaskIntoConstraints = NO;
-    _dots.hidesForSinglePage = YES;
-    _dots.userInteractionEnabled = NO;
-    _dots.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
-    if (@available(iOS 14.0, *)) {
-        _dots.backgroundStyle = UIPageControlBackgroundStyleMinimal;
-    }
-    [self addSubview:_dots];
 
     [NSLayoutConstraint activateConstraints:@[
         [_scroll.topAnchor constraintEqualToAnchor:self.topAnchor],
         [_scroll.leadingAnchor constraintEqualToAnchor:self.leadingAnchor],
         [_scroll.trailingAnchor constraintEqualToAnchor:self.trailingAnchor],
         [_scroll.heightAnchor constraintEqualToConstant:TRBContentHeight],
-
-        [_dots.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
-        [_dots.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-2],
-        [_dots.heightAnchor constraintEqualToConstant:18],
     ]];
 
     return self;
@@ -384,72 +493,56 @@ static const CGFloat TRBPageGap = 12.0;
 }
 
 - (void)loadRemoteData {
-    if (self.didLoad) return;
-    self.didLoad = YES;
+    // Always restore the last successful banner set first.
+    // This makes the banner appear instantly on app launch/return to Sources.
+    if (self.items.count == 0) {
+        [self applyCachedDataImmediately];
+    } else {
+        self.hidden = NO;
+    }
+
+    // Only one network refresh per carousel instance.
+    if (self.networkRequested) return;
+    self.networkRequested = YES;
 
     NSURL *url = [NSURL URLWithString:TRBAPIURL];
     if (!url) return;
 
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
-    request.cachePolicy = NSURLRequestReloadRevalidatingCacheData;
-    request.timeoutInterval = 12.0;
+    request.cachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
+    request.timeoutInterval = 10.0;
     [request setValue:@"application/json" forHTTPHeaderField:@"Accept"];
 
     __weak typeof(self) weakSelf = self;
+
     [[[NSURLSession sharedSession] dataTaskWithRequest:request
         completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
 
         if (!data.length || error) {
+            // Keep cached/current content visible. Never hide because network failed.
             dispatch_async(dispatch_get_main_queue(), ^{
-                weakSelf.didLoad = NO;
-                weakSelf.hidden = YES;
+                weakSelf.hidden = (weakSelf.items.count == 0);
             });
             return;
         }
 
-        NSError *jsonError = nil;
-        id obj = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError];
-        NSArray *raw = [obj isKindOfClass:NSDictionary.class] ? ((NSDictionary *)obj)[@"banners"] : nil;
-
-        if (![raw isKindOfClass:NSArray.class]) {
+        NSArray<TRBBannerItem *> *fresh = [weakSelf parseBannerData:data];
+        if (fresh.count == 0) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                weakSelf.didLoad = NO;
-                weakSelf.hidden = YES;
+                weakSelf.hidden = (weakSelf.items.count == 0);
             });
             return;
         }
 
-        NSMutableArray *parsed = [NSMutableArray array];
-        for (id rowObj in raw) {
-            if (![rowObj isKindOfClass:NSDictionary.class]) continue;
-            NSDictionary *row = (NSDictionary *)rowObj;
-
-            id enabled = row[@"enabled"];
-            if ([enabled respondsToSelector:@selector(boolValue)] && ![enabled boolValue]) continue;
-
-            TRBBannerItem *item = [TRBBannerItem new];
-            item.itemID = [row[@"id"] description] ?: @"";
-            item.title = [row[@"title"] isKindOfClass:NSString.class] ? row[@"title"] : @"";
-            item.descText = [row[@"description"] isKindOfClass:NSString.class] ? row[@"description"] : @"";
-            item.coverURL = [row[@"cover_url"] isKindOfClass:NSString.class] ? row[@"cover_url"] : @"";
-            item.iconURL = [row[@"icon_url"] isKindOfClass:NSString.class] ? row[@"icon_url"] : @"";
-            item.downloadURL = [row[@"download_url"] isKindOfClass:NSString.class] ? row[@"download_url"] : @"";
-            item.sortOrder = [row[@"sort_order"] respondsToSelector:@selector(integerValue)] ? [row[@"sort_order"] integerValue] : 0;
-
-            if (item.coverURL.length || item.title.length) {
-                [parsed addObject:item];
-            }
-        }
-
-        [parsed sortUsingComparator:^NSComparisonResult(TRBBannerItem *a, TRBBannerItem *b) {
-            if (a.sortOrder < b.sortOrder) return NSOrderedAscending;
-            if (a.sortOrder > b.sortOrder) return NSOrderedDescending;
-            return NSOrderedSame;
-        }];
+        // Persist the exact successful JSON payload.
+        [data writeToFile:TRBBannerJSONCachePath() atomically:YES];
 
         dispatch_async(dispatch_get_main_queue(), ^{
-            [weakSelf applyItems:parsed];
+            [weakSelf applyItems:fresh];
+            weakSelf.didLoad = YES;
+            weakSelf.hidden = NO;
         });
+
     }] resume];
 }
 
@@ -470,8 +563,7 @@ static const CGFloat TRBPageGap = 12.0;
     CGFloat step = w + TRBPageGap;
 
     self.scroll.contentSize = CGSizeMake(MAX(w, step * self.items.count - TRBPageGap), TRBContentHeight);
-    self.dots.numberOfPages = self.items.count;
-    self.dots.currentPage = 0;
+    
 
     [self.items enumerateObjectsUsingBlock:^(TRBBannerItem *item, NSUInteger idx, BOOL *stop) {
         TRBBannerPage *page = [[TRBBannerPage alloc] initWithFrame:CGRectMake(step * idx, 0, w, TRBContentHeight)];
@@ -514,9 +606,9 @@ static const CGFloat TRBPageGap = 12.0;
 - (void)nextPage {
     if (self.items.count < 2 || self.scroll.isDragging || self.scroll.isDecelerating) return;
     CGFloat step = MAX(self.bounds.size.width, 1.0) + TRBPageGap;
-    NSInteger next = (self.dots.currentPage + 1) % self.items.count;
+    NSInteger next = (self.currentPage + 1) % self.items.count;
     [self.scroll setContentOffset:CGPointMake(next * step, 0) animated:YES];
-    self.dots.currentPage = next;
+    objc_setAssociatedObject(self, @selector(nextPage), @(next), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
 - (void)scrollViewWillEndDragging:(UIScrollView *)scrollView
@@ -525,15 +617,15 @@ static const CGFloat TRBPageGap = 12.0;
     NSInteger page = [self nearestPageForOffset:targetContentOffset->x];
     CGFloat step = MAX(self.bounds.size.width, 1.0) + TRBPageGap;
     targetContentOffset->x = page * step;
-    self.dots.currentPage = page;
+    self.currentPage = page;
 }
 
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
-    self.dots.currentPage = [self nearestPageForOffset:scrollView.contentOffset.x];
+    self.currentPage = [self nearestPageForOffset:scrollView.contentOffset.x];
 }
 
 - (void)scrollViewDidEndScrollingAnimation:(UIScrollView *)scrollView {
-    self.dots.currentPage = [self nearestPageForOffset:scrollView.contentOffset.x];
+    self.currentPage = [self nearestPageForOffset:scrollView.contentOffset.x];
 }
 
 @end
@@ -790,6 +882,14 @@ static void TRBInstallBannerIntoController(UIViewController *vc) {
     TRBRemoveDuplicateCarouselsInView(vc.view, existing);
 
     if (existing && existing.superview == vc.view) {
+        existing.hidden = NO;
+        UIView *existingBackdrop = objc_getAssociatedObject(vc, &kTRBBackdropKey);
+        if (existingBackdrop) existingBackdrop.hidden = NO;
+
+        if (existing.items.count == 0) {
+            [existing applyCachedDataImmediately];
+        }
+
         existing.frame = CGRectMake(16.0, 117.0, 358.0, 180.0);
         existing.layer.zPosition = 9999999.0;
         existing.hidden = NO;
@@ -808,7 +908,9 @@ static void TRBInstallBannerIntoController(UIViewController *vc) {
 
     TRBBannerCarousel *carousel = [[TRBBannerCarousel alloc] initWithFrame:CGRectMake(16.0, 117.0, 358.0, 180.0)];
     carousel.autoresizingMask = UIViewAutoresizingNone;
-    carousel.hidden = YES;
+
+    BOOL restoredFromCache = [carousel applyCachedDataImmediately];
+    carousel.hidden = !restoredFromCache;
     carousel.tag = 0x54524231;
     carousel.layer.zPosition = 9999999.0;
 
@@ -822,17 +924,24 @@ static void TRBInstallBannerIntoController(UIViewController *vc) {
 
 static void TRBPatchedViewDidAppear(UIViewController *self, SEL _cmd, BOOL animated) {
     ((void (*)(id, SEL, BOOL))TRBOriginalViewDidAppear)(self, _cmd, animated);
-    dispatch_async(dispatch_get_main_queue(), ^{
-        if (TRBIsStrictSourcesRoot(self)) {
-            TRBBannerCarousel *carousel = objc_getAssociatedObject(self, &kTRBCarouselKey);
-            if (carousel) {
-                carousel.hidden = NO;
+    if (TRBIsStrictSourcesRoot(self)) {
+        TRBBannerCarousel *carousel = objc_getAssociatedObject(self, &kTRBCarouselKey);
+        UIView *backdrop = objc_getAssociatedObject(self, &kTRBBackdropKey);
+
+        if (backdrop) backdrop.hidden = NO;
+
+        if (carousel) {
+            if (carousel.items.count == 0) {
+                [carousel applyCachedDataImmediately];
             }
-            TRBInstallBannerIntoController(self);
-        } else {
-            TRBHideCarouselForController(self);
+            carousel.hidden = NO;
         }
-    });
+
+        // Do it now, not after a delayed page pass.
+        TRBInstallBannerIntoController(self);
+    } else {
+        TRBHideCarouselForController(self);
+    }
 }
 
 static void TRBPatchedViewWillDisappear(UIViewController *self, SEL _cmd, BOOL animated) {
@@ -943,7 +1052,7 @@ static void TRBReconcileVisibility(void) {
 static void TRBStartVisibilityTimer(void) {
     if (TRBVisibilityTimer) return;
 
-    TRBVisibilityTimer = [NSTimer scheduledTimerWithTimeInterval:0.6
+    TRBVisibilityTimer = [NSTimer scheduledTimerWithTimeInterval:0.15
                                                          repeats:YES
                                                            block:^(__unused NSTimer *timer) {
         TRBReconcileVisibility();

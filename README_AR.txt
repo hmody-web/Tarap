@@ -120,3 +120,15 @@ v5.4.1 BUILD FIX:
 - Keeps return-to-Sources restore, theme-aware full-width backdrop,
   hidden page dots, duplicate cleanup, 12pt spacing,
   X=16 Y=117 W=358 H=180.
+
+v5.5 INSTANT + OFFLINE CACHE:
+- Preserves all v5.4.1 modifications.
+- Restores banner synchronously/immediately when Sources becomes visible.
+- Reads cached banners.json before any network wait.
+- Successful API JSON is persisted to disk.
+- Cover/icon image bytes are persisted to disk cache.
+- Offline mode keeps the last successful banners, metadata, covers, and icons visible.
+- Network failure never hides valid cached/current banners.
+- UIPageControl is not created at all, so _UIPageControlIndicatorContentView is absent.
+- Custom-tab fallback reconcile interval reduced to 0.15 sec.
+- Keeps theme-aware full-width backdrop, X=16 Y=117 W=358 H=180, and 12pt page gap.

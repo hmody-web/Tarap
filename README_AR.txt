@@ -78,3 +78,10 @@ v5.2:
 - Cover image and icon forced to identity transform.
 - Arabic title/description forced to proper RTL writing direction and right alignment.
 - Keeps the free independent overlay and all previous API/design behavior.
+
+v5.3 STRICT SOURCES:
+- Banner appears only on main Sources root.
+- Hides immediately on tab switch, push, modal, YouTube/Google/Instagram/Facebook/TikTok pages.
+- Removes duplicate TRBBannerCarousel instances.
+- Adds 12pt real spacing between banners with custom snapping.
+- Keeps X=16, Y=117, W=358, H=180.

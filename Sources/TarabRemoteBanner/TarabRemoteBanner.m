@@ -7,6 +7,7 @@ static NSString * const TRBAPIURL = @"https://scrptaty.com/apps/tarab/api.php";
 static const CGFloat TRBContainerHeight = 180.0;
 static const CGFloat TRBContentHeight = 180.0;
 static const CGFloat TRBGap = 0.0;
+static const CGFloat TRBPageGap = 12.0;
 
 #pragma mark - Model
 
@@ -340,7 +341,7 @@ static const CGFloat TRBGap = 0.0;
 
     _scroll = [[UIScrollView alloc] initWithFrame:CGRectZero];
     _scroll.translatesAutoresizingMaskIntoConstraints = NO;
-    _scroll.pagingEnabled = YES;
+    _scroll.pagingEnabled = NO;
     _scroll.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     _scroll.transform = CGAffineTransformIdentity;
     _scroll.showsHorizontalScrollIndicator = NO;
@@ -452,7 +453,9 @@ static const CGFloat TRBGap = 0.0;
 - (void)applyItems:(NSArray<TRBBannerItem *> *)items {
     self.items = items ?: @[];
 
-    for (UIView *v in self.scroll.subviews) [v removeFromSuperview];
+    for (UIView *v in [self.scroll.subviews copy]) {
+        [v removeFromSuperview];
+    }
 
     if (self.items.count == 0) {
         self.hidden = YES;
@@ -460,64 +463,156 @@ static const CGFloat TRBGap = 0.0;
     }
 
     self.hidden = NO;
-    CGFloat w = self.bounds.size.width;
-    if (w < 100) w = UIScreen.mainScreen.bounds.size.width - 32.0;
+    CGFloat w = self.bounds.size.width > 100.0 ? self.bounds.size.width : 358.0;
+    CGFloat step = w + TRBPageGap;
 
-    self.scroll.contentSize = CGSizeMake(w * self.items.count, TRBContentHeight);
+    self.scroll.contentSize = CGSizeMake(MAX(w, step * self.items.count - TRBPageGap), TRBContentHeight);
     self.dots.numberOfPages = self.items.count;
     self.dots.currentPage = 0;
 
     [self.items enumerateObjectsUsingBlock:^(TRBBannerItem *item, NSUInteger idx, BOOL *stop) {
-        CGRect frame = CGRectMake(w * idx, 0, w, TRBContentHeight);
-        TRBBannerPage *page = [[TRBBannerPage alloc] initWithFrame:CGRectInset(frame, 0, 0)];
+        TRBBannerPage *page = [[TRBBannerPage alloc] initWithFrame:CGRectMake(step * idx, 0, w, TRBContentHeight)];
+        page.tag = 0x54525000 + (NSInteger)idx;
         [page configure:item];
         [self.scroll addSubview:page];
     }];
 
     [self.timer invalidate];
+    self.timer = nil;
+
     if (self.items.count > 1) {
-        self.timer = [NSTimer scheduledTimerWithTimeInterval:5.0
-                                                     target:self
-                                                   selector:@selector(nextPage)
-                                                   userInfo:nil
-                                                    repeats:YES];
+        self.timer = [NSTimer scheduledTimerWithTimeInterval:5.0 target:self selector:@selector(nextPage) userInfo:nil repeats:YES];
         [[NSRunLoop mainRunLoop] addTimer:self.timer forMode:NSRunLoopCommonModes];
     }
 }
 
 - (void)layoutSubviews {
     [super layoutSubviews];
-    CGFloat w = self.bounds.size.width;
+    CGFloat w = self.bounds.size.width > 100.0 ? self.bounds.size.width : 358.0;
+    CGFloat step = w + TRBPageGap;
     self.scroll.frame = CGRectMake(0, 0, w, TRBContentHeight);
 
-    [self.items enumerateObjectsUsingBlock:^(TRBBannerItem *item, NSUInteger idx, BOOL *stop) {
-        if (idx < self.scroll.subviews.count) {
-            UIView *page = self.scroll.subviews[idx];
-            page.frame = CGRectMake(w * idx, 0, w, TRBContentHeight);
-        }
-    }];
-    self.scroll.contentSize = CGSizeMake(w * self.items.count, TRBContentHeight);
+    for (NSUInteger idx = 0; idx < self.items.count; idx++) {
+        UIView *page = [self.scroll viewWithTag:(0x54525000 + (NSInteger)idx)];
+        if (page) page.frame = CGRectMake(step * idx, 0, w, TRBContentHeight);
+    }
+
+    self.scroll.contentSize = CGSizeMake(MAX(w, step * self.items.count - TRBPageGap), TRBContentHeight);
+}
+
+- (NSInteger)nearestPageForOffset:(CGFloat)x {
+    if (self.items.count == 0) return 0;
+    CGFloat w = MAX(self.bounds.size.width, 1.0);
+    CGFloat step = w + TRBPageGap;
+    NSInteger page = (NSInteger)llround(x / step);
+    return MAX(0, MIN(page, (NSInteger)self.items.count - 1));
 }
 
 - (void)nextPage {
     if (self.items.count < 2 || self.scroll.isDragging || self.scroll.isDecelerating) return;
+    CGFloat step = MAX(self.bounds.size.width, 1.0) + TRBPageGap;
     NSInteger next = (self.dots.currentPage + 1) % self.items.count;
-    [self.scroll setContentOffset:CGPointMake(next * self.scroll.bounds.size.width, 0) animated:YES];
+    [self.scroll setContentOffset:CGPointMake(next * step, 0) animated:YES];
     self.dots.currentPage = next;
 }
 
+- (void)scrollViewWillEndDragging:(UIScrollView *)scrollView
+                     withVelocity:(CGPoint)velocity
+              targetContentOffset:(inout CGPoint *)targetContentOffset {
+    NSInteger page = [self nearestPageForOffset:targetContentOffset->x];
+    CGFloat step = MAX(self.bounds.size.width, 1.0) + TRBPageGap;
+    targetContentOffset->x = page * step;
+    self.dots.currentPage = page;
+}
+
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
-    CGFloat w = MAX(scrollView.bounds.size.width, 1);
-    NSInteger page = (NSInteger)llround(scrollView.contentOffset.x / w);
-    self.dots.currentPage = MAX(0, MIN(page, (NSInteger)self.items.count - 1));
+    self.dots.currentPage = [self nearestPageForOffset:scrollView.contentOffset.x];
 }
 
 - (void)scrollViewDidEndScrollingAnimation:(UIScrollView *)scrollView {
-    [self scrollViewDidEndDecelerating:scrollView];
+    self.dots.currentPage = [self nearestPageForOffset:scrollView.contentOffset.x];
 }
 
 @end
 
+
+static BOOL TRBControllerIsActuallyVisible(UIViewController *vc) {
+    if (!vc || !vc.isViewLoaded || !vc.view.window) return NO;
+    if (vc.presentedViewController) return NO;
+
+    if (vc.navigationController) {
+        if (vc.navigationController.topViewController != vc) return NO;
+        NSArray *navStack = vc.navigationController.viewControllers;
+        if (navStack.count > 0 && navStack.firstObject != vc) return NO;
+    }
+
+    UITabBarController *tab = vc.tabBarController;
+    if (tab) {
+        UIViewController *selected = tab.selectedViewController;
+        BOOL selectedContains = (selected == vc);
+        if ([selected isKindOfClass:UINavigationController.class]) {
+            UINavigationController *nav = (UINavigationController *)selected;
+            selectedContains = (nav.topViewController == vc);
+        }
+        if (!selectedContains) return NO;
+    }
+
+    return YES;
+}
+
+static BOOL TRBIsStrictSourcesRoot(UIViewController *vc) {
+    if (!TRBControllerIsActuallyVisible(vc)) return NO;
+    if (!TRBIsSourcesPage(vc)) return NO;
+
+    __block BOOL foundYouTube = NO;
+    __block BOOL foundTrending = NO;
+    NSMutableArray<UIView *> *views = [NSMutableArray arrayWithObject:vc.view];
+    NSUInteger inspected = 0;
+
+    while (views.count && inspected < 1400) {
+        UIView *v = views.lastObject;
+        [views removeLastObject];
+        inspected++;
+
+        NSString *text = nil;
+        if ([v isKindOfClass:UILabel.class]) text = ((UILabel *)v).text;
+        else if ([v isKindOfClass:UIButton.class]) text = [((UIButton *)v) titleForState:UIControlStateNormal];
+
+        if (TRBStringContains(text, @"يوتيوب")) foundYouTube = YES;
+        if (TRBStringContains(text, @"ترندات")) foundTrending = YES;
+        if (foundYouTube && foundTrending) return YES;
+
+        for (UIView *sub in v.subviews) [views addObject:sub];
+    }
+    return NO;
+}
+
+static void TRBHideCarouselForController(UIViewController *vc) {
+    TRBBannerCarousel *carousel = objc_getAssociatedObject(vc, &kTRBCarouselKey);
+    if (!carousel) return;
+    carousel.hidden = YES;
+    [carousel.timer invalidate];
+    carousel.timer = nil;
+}
+
+static void TRBRemoveDuplicateCarouselsInView(UIView *root, TRBBannerCarousel *keep) {
+    if (!root) return;
+    NSMutableArray<UIView *> *views = [NSMutableArray arrayWithObject:root];
+    while (views.count) {
+        UIView *v = views.lastObject;
+        [views removeLastObject];
+        for (UIView *sub in [v.subviews copy]) {
+            if ([sub isKindOfClass:TRBBannerCarousel.class] && sub != keep) {
+                TRBBannerCarousel *dup = (TRBBannerCarousel *)sub;
+                [dup.timer invalidate];
+                dup.timer = nil;
+                [dup removeFromSuperview];
+            } else {
+                [views addObject:sub];
+            }
+        }
+    }
+}
 
 #pragma mark - Installation / page targeting
 
@@ -525,6 +620,7 @@ static char kTRBCarouselKey;
 static char kTRBOriginalInsetKey;
 static char kTRBTargetScrollKey;
 static IMP TRBOriginalViewDidAppear = NULL;
+static IMP TRBOriginalViewWillDisappear = NULL;
 static IMP TRBOriginalViewDidLayout = NULL;
 
 static BOOL TRBStringContains(NSString *haystack, NSString *needle) {
@@ -606,25 +702,31 @@ static UIScrollView *TRBFindMainScrollView(UIView *root) {
 }
 
 static void TRBInstallBannerIntoController(UIViewController *vc) {
-    if (!vc.isViewLoaded || !vc.view.window) return;
-    if (!TRBIsSourcesPage(vc)) return;
-
-    TRBBannerCarousel *existing = objc_getAssociatedObject(vc, &kTRBCarouselKey);
-    if (existing && existing.superview) {
-        existing.layer.zPosition = 9999999.0;
-        [vc.view bringSubviewToFront:existing];
-        [existing loadRemoteData];
+    if (!TRBIsStrictSourcesRoot(vc)) {
+        TRBHideCarouselForController(vc);
         return;
     }
 
-    // Independent overlay. It does not belong to any list or scroll view.
-    const CGFloat x = 16.0;
-    const CGFloat y = 117.0;
-    const CGFloat width = 358.0;
-    const CGFloat height = 180.0;
+    TRBBannerCarousel *existing = objc_getAssociatedObject(vc, &kTRBCarouselKey);
+    TRBRemoveDuplicateCarouselsInView(vc.view, existing);
 
-    TRBBannerCarousel *carousel = [[TRBBannerCarousel alloc]
-        initWithFrame:CGRectMake(x, y, width, height)];
+    if (existing && existing.superview == vc.view) {
+        existing.frame = CGRectMake(16.0, 117.0, 358.0, 180.0);
+        existing.layer.zPosition = 9999999.0;
+        existing.hidden = NO;
+        [vc.view bringSubviewToFront:existing];
+        if (!existing.didLoad) [existing loadRemoteData];
+        return;
+    }
+
+    if (existing) {
+        [existing.timer invalidate];
+        existing.timer = nil;
+        [existing removeFromSuperview];
+        objc_setAssociatedObject(vc, &kTRBCarouselKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+
+    TRBBannerCarousel *carousel = [[TRBBannerCarousel alloc] initWithFrame:CGRectMake(16.0, 117.0, 358.0, 180.0)];
     carousel.autoresizingMask = UIViewAutoresizingNone;
     carousel.hidden = YES;
     carousel.tag = 0x54524231;
@@ -632,81 +734,63 @@ static void TRBInstallBannerIntoController(UIViewController *vc) {
 
     [vc.view addSubview:carousel];
     [vc.view bringSubviewToFront:carousel];
-
     objc_setAssociatedObject(vc, &kTRBCarouselKey, carousel, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    objc_setAssociatedObject(vc.view, &kTRBTargetScrollKey, nil, OBJC_ASSOCIATION_ASSIGN);
-
-    dispatch_async(dispatch_get_main_queue(), ^{
-        carousel.layer.zPosition = 9999999.0;
-        if (carousel.superview == vc.view) {
-            [vc.view bringSubviewToFront:carousel];
-        }
-    });
-
+    TRBRemoveDuplicateCarouselsInView(vc.view, carousel);
     [carousel loadRemoteData];
 }
 
 static void TRBPatchedViewDidAppear(UIViewController *self, SEL _cmd, BOOL animated) {
     ((void (*)(id, SEL, BOOL))TRBOriginalViewDidAppear)(self, _cmd, animated);
-
     dispatch_async(dispatch_get_main_queue(), ^{
-        TRBInstallBannerIntoController(self);
+        if (TRBIsStrictSourcesRoot(self)) TRBInstallBannerIntoController(self);
+        else TRBHideCarouselForController(self);
     });
 }
 
-static void TRBPatchedViewDidLayout(UIViewController *self, SEL _cmd) {
-    if (TRBOriginalViewDidLayout) {
-        ((void (*)(id, SEL))TRBOriginalViewDidLayout)(self, _cmd);
-    }
-
-    if (!TRBIsSourcesPage(self)) return;
-
-    TRBBannerCarousel *carousel = objc_getAssociatedObject(self, &kTRBCarouselKey);
-    if (carousel && carousel.superview) {
-        // FREE coordinates: edit these four constants only.
-        const CGFloat TRBFreeX = 16.0;
-        const CGFloat TRBFreeY = 117.0;
-        const CGFloat TRBFreeWidth = 358.0;
-        const CGFloat TRBFreeHeight = 180.0;
-
-        carousel.frame = CGRectMake(TRBFreeX, TRBFreeY, TRBFreeWidth, TRBFreeHeight);
-        carousel.layer.zPosition = 9999999.0;
-        if (carousel.superview == self.view) {
-            [self.view bringSubviewToFront:carousel];
-        }
-
-        dispatch_async(dispatch_get_main_queue(), ^{
-            carousel.layer.zPosition = 9999999.0;
-            if (carousel.superview == self.view) {
-                [self.view bringSubviewToFront:carousel];
-            }
-        });
-    } else {
-        TRBInstallBannerIntoController(self);
+static void TRBPatchedViewWillDisappear(UIViewController *self, SEL _cmd, BOOL animated) {
+    TRBHideCarouselForController(self);
+    if (TRBOriginalViewWillDisappear) {
+        ((void (*)(id, SEL, BOOL))TRBOriginalViewWillDisappear)(self, _cmd, animated);
     }
 }
 
+static void TRBPatchedViewDidLayout(UIViewController *self, SEL _cmd) {
+    if (TRBOriginalViewDidLayout) ((void (*)(id, SEL))TRBOriginalViewDidLayout)(self, _cmd);
+
+    TRBBannerCarousel *carousel = objc_getAssociatedObject(self, &kTRBCarouselKey);
+    if (!TRBIsStrictSourcesRoot(self)) {
+        if (carousel) carousel.hidden = YES;
+        return;
+    }
+
+    if (!carousel || carousel.superview != self.view) {
+        TRBInstallBannerIntoController(self);
+        return;
+    }
+
+    carousel.frame = CGRectMake(16.0, 117.0, 358.0, 180.0);
+    carousel.layer.zPosition = 9999999.0;
+    carousel.hidden = NO;
+    TRBRemoveDuplicateCarouselsInView(self.view, carousel);
+    [self.view bringSubviewToFront:carousel];
+}
 
 static void TRBInstallHooks(void) {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         Class cls = UIViewController.class;
-
         Method appear = class_getInstanceMethod(cls, @selector(viewDidAppear:));
+        Method disappear = class_getInstanceMethod(cls, @selector(viewWillDisappear:));
         Method layout = class_getInstanceMethod(cls, @selector(viewDidLayoutSubviews));
-
-        if (!appear || !layout) {
-            NSLog(@"[TarabRemoteBanner] required UIViewController methods not found");
-            return;
-        }
+        if (!appear || !disappear || !layout) return;
 
         TRBOriginalViewDidAppear = method_getImplementation(appear);
+        TRBOriginalViewWillDisappear = method_getImplementation(disappear);
         TRBOriginalViewDidLayout = method_getImplementation(layout);
 
         method_setImplementation(appear, (IMP)TRBPatchedViewDidAppear);
+        method_setImplementation(disappear, (IMP)TRBPatchedViewWillDisappear);
         method_setImplementation(layout, (IMP)TRBPatchedViewDidLayout);
-
-        NSLog(@"[TarabRemoteBanner] hooks installed");
     });
 }
 

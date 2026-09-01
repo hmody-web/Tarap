@@ -1368,19 +1368,49 @@ static BOOL TRBIsTargetAnyViewHostingView(UIView *view) {
     if (!view) return NO;
 
     NSString *name = NSStringFromClass(view.class);
+    NSString *desc = [view description] ?: @"";
 
-    // Runtime name observed in FLEX:
-    // _TtGC7SwiftUI14_UIHostingViewVS_7AnyView_
     BOOL classMatch =
-        [name containsString:@"_UIHostingView"] &&
-        [name containsString:@"AnyView"];
+        ([name containsString:@"_UIHostingView"] ||
+         [desc containsString:@"_UIHostingView"]) &&
+        ([name containsString:@"AnyView"] ||
+         [desc containsString:@"AnyView"]);
 
     if (!classMatch) return NO;
 
-    // Restrict to the large Sources hosting view so other SwiftUI hosts stay untouched.
+    // Target only the large page host seen in FLEX.
+    CGRect f = view.frame;
     CGRect b = view.bounds;
-    return (fabs(b.size.width - 390.0) < 3.0 &&
-            b.size.height > 900.0);
+
+    BOOL widthMatch =
+        fabs(f.size.width - 390.0) < 8.0 ||
+        fabs(b.size.width - 390.0) < 8.0;
+
+    BOOL tallEnough =
+        f.size.height > 900.0 ||
+        b.size.height > 900.0;
+
+    return widthMatch && tallEnough;
+}
+
+static void TRBMarkAndForceTargetHostingView(UIView *view) {
+    if (!TRBIsTargetAnyViewHostingView(view)) return;
+
+    view.accessibilityIdentifier = @"TRBSourcesMainHostingView";
+
+    CGRect wanted = CGRectMake(0.0, -160.0, 390.0, 1200.0);
+
+    if (!CGRectEqualToRect(view.frame, wanted)) {
+        view.frame = wanted;
+    }
+
+    CGRect b = view.bounds;
+    b.origin = CGPointZero;
+    b.size = CGSizeMake(390.0, 1200.0);
+
+    if (!CGRectEqualToRect(view.bounds, b)) {
+        view.bounds = b;
+    }
 }
 
 static CGRect TRBForcedAnyViewFrame(void) {
@@ -1391,6 +1421,7 @@ static IMP TRBOrigSetFrame_v19 = NULL;
 static void TRBSetFrame_v19(UIView *self, SEL _cmd, CGRect frame) {
     if (TRBIsTargetAnyViewHostingView(self)) {
         frame = TRBForcedAnyViewFrame();
+        self.accessibilityIdentifier = @"TRBSourcesMainHostingView";
     }
 
     ((void(*)(id,SEL,CGRect))TRBOrigSetFrame_v19)(self, _cmd, frame);
@@ -1399,6 +1430,7 @@ static void TRBSetFrame_v19(UIView *self, SEL _cmd, CGRect frame) {
 static IMP TRBOrigSetBounds_v19 = NULL;
 static void TRBSetBounds_v19(UIView *self, SEL _cmd, CGRect bounds) {
     if (TRBIsTargetAnyViewHostingView(self)) {
+        self.accessibilityIdentifier = @"TRBSourcesMainHostingView";
         bounds.origin = CGPointZero;
         bounds.size = CGSizeMake(390.0, 1200.0);
     }
@@ -1411,6 +1443,8 @@ static void TRBLayout_v19(UIView *self, SEL _cmd) {
     ((void(*)(id,SEL))TRBOrigLayout_v19)(self, _cmd);
 
     if (TRBIsTargetAnyViewHostingView(self)) {
+        self.accessibilityIdentifier = @"TRBSourcesMainHostingView";
+
         CGRect wanted = TRBForcedAnyViewFrame();
 
         if (!CGRectEqualToRect(self.frame, wanted)) {
@@ -1461,9 +1495,68 @@ static void TRBInstallAnyViewFrameForce_v19(void) {
     });
 }
 
+
+static void TRBScanAndForceHostingViews(void) {
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class]) continue;
+
+        for (UIWindow *window in ((UIWindowScene *)scene).windows) {
+            if (window.hidden) continue;
+
+            NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:window];
+
+            while (stack.count) {
+                UIView *v = stack.lastObject;
+                [stack removeLastObject];
+
+                if (TRBIsTargetAnyViewHostingView(v)) {
+                    v.accessibilityIdentifier = @"TRBSourcesMainHostingView";
+
+                    CGRect wanted = TRBForcedAnyViewFrame();
+
+                    if (TRBOrigSetFrame_v19 &&
+                        !CGRectEqualToRect(v.frame, wanted)) {
+                        ((void(*)(id,SEL,CGRect))TRBOrigSetFrame_v19)(
+                            v,
+                            @selector(setFrame:),
+                            wanted
+                        );
+                    }
+
+                    CGRect b = v.bounds;
+                    b.origin = CGPointZero;
+                    b.size = CGSizeMake(390.0, 1200.0);
+
+                    if (TRBOrigSetBounds_v19 &&
+                        !CGRectEqualToRect(v.bounds, b)) {
+                        ((void(*)(id,SEL,CGRect))TRBOrigSetBounds_v19)(
+                            v,
+                            @selector(setBounds:),
+                            b
+                        );
+                    }
+                }
+
+                for (UIView *sub in v.subviews) {
+                    [stack addObject:sub];
+                }
+            }
+        }
+    }
+}
+
 __attribute__((constructor))
 static void TRBAnyViewFrameEntry_v19(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         TRBInstallAnyViewFrameForce_v19();
+
+        // Existing SwiftUI host may already be on screen before the hooks run.
+        TRBScanAndForceHostingViews();
+
+        [NSTimer scheduledTimerWithTimeInterval:0.05
+                                         repeats:YES
+                                           block:^(__unused NSTimer *timer) {
+            TRBScanAndForceHostingViews();
+        }];
     });
 }

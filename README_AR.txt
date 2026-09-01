@@ -125,3 +125,13 @@ v1.9 PAGE-BOUND + FRAME:
 - When leaving Sources, the page itself moves/hides and naturally carries the header with it.
 - Returning to Sources reveals the same mounted header with the page.
 - Existing glass/PNG/banner-hiding modifications are preserved.
+
+v1.10 HOSTING TAG:
+- Strengthens detection of SwiftUI _UIHostingView<AnyView>.
+- Forces target frame to {{0,-160},{390,1200}}.
+- Forces bounds to {{0,0},{390,1200}}.
+- Adds accessibilityIdentifier:
+  TRBSourcesMainHostingView
+- Existing host views are scanned immediately at startup.
+- Re-scans every 0.05s so FLEX can find the tagged view quickly
+  and SwiftUI cannot permanently restore another frame.

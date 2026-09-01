@@ -46,3 +46,9 @@ Sources Top Header v1:
 - Centered image with Aspect Fit.
 - Visible only on the root Sources page and hidden on source detail pages/other tabs.
 - Re-evaluated every 0.05s for immediate return when Sources becomes visible.
+
+v1.1 PACKAGE FIX:
+- Fixed Package.swift syntax.
+- resources is now correctly inside the TarabBannerHider target.
+- platforms remains .iOS(.v15).
+- No visual or runtime behavior changed.

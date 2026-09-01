@@ -52,3 +52,13 @@ v1.1 PACKAGE FIX:
 - resources is now correctly inside the TarabBannerHider target.
 - platforms remains .iOS(.v15).
 - No visual or runtime behavior changed.
+
+v1.2 RESOURCE FIX:
+- Removed SwiftPM resources completely because this Objective-C target/toolchain
+  does not accept the resources argument.
+- Package.swift is now the same compatible format used by the successful hider.
+- build_and_inject.sh copies the user's exact TarabSourcesHeader.jpeg directly
+  into TarabBannerHider.framework after xcodebuild succeeds.
+- Runtime loads the JPEG directly from TarabBannerHider.framework.
+- No image generation or modification.
+- No change to banner hiding or Sources-only top header behavior.

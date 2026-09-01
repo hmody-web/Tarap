@@ -35,6 +35,17 @@ fi
 
 echo "✅ Framework: $PRODUCT"
 
+# Copy the user's exact header JPEG directly into the framework bundle.
+# This avoids SwiftPM resource support entirely.
+HEADER_IMAGE="$ROOT/Sources/TarabBannerHider/Resources/TarabSourcesHeader.jpeg"
+if [ ! -f "$HEADER_IMAGE" ]; then
+  echo "❌ Header image missing: $HEADER_IMAGE"
+  exit 1
+fi
+
+cp "$HEADER_IMAGE" "$PRODUCT/TarabSourcesHeader.jpeg"
+echo "✅ Header image embedded in framework"
+
 cd "$ROOT/work"
 unzip -q "$IPA"
 

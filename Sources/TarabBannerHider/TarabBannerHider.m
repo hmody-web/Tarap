@@ -512,18 +512,31 @@ static BOOL TRBTextLooksLikeSourcesRoot(UIView *root) {
 static UIImage *TRBSourcesHeaderImage(void) {
     static UIImage *image = nil;
     static dispatch_once_t onceToken;
+
     dispatch_once(&onceToken, ^{
-        NSBundle *bundle = [NSBundle bundleForClass:NSClassFromString(@"TarabBannerHider") ?: NSObject.class];
-        NSString *path = [bundle pathForResource:@"TarabSourcesHeader" ofType:@"jpeg"];
-        if (!path) {
-            // SwiftPM framework resource fallback.
-            for (NSBundle *b in NSBundle.allFrameworks) {
-                NSString *p = [b pathForResource:@"TarabSourcesHeader" ofType:@"jpeg"];
-                if (p) { path = p; break; }
+        NSString *path = nil;
+
+        // The build script copies the original JPEG directly into
+        // TarabBannerHider.framework.
+        for (NSBundle *bundle in NSBundle.allFrameworks) {
+            NSString *bundlePath = bundle.bundlePath ?: @"";
+            if ([bundlePath containsString:@"TarabBannerHider.framework"]) {
+                path = [bundle pathForResource:@"TarabSourcesHeader" ofType:@"jpeg"];
+                if (!path) {
+                    path = [bundle.bundlePath stringByAppendingPathComponent:@"TarabSourcesHeader.jpeg"];
+                }
+                if ([[NSFileManager defaultManager] fileExistsAtPath:path]) {
+                    break;
+                }
+                path = nil;
             }
         }
-        if (path) image = [UIImage imageWithContentsOfFile:path];
+
+        if (path.length) {
+            image = [UIImage imageWithContentsOfFile:path];
+        }
     });
+
     return image;
 }
 

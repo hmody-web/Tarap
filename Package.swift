@@ -18,9 +18,6 @@ let package = Package(
             name: "TarabBannerHider",
             path: "Sources/TarabBannerHider",
             publicHeadersPath: "include",
-            resources: [
-                .process("Resources")
-            ],
             cSettings: [
                 .unsafeFlags(["-fobjc-arc"])
             ]

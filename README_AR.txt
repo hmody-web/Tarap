@@ -85,3 +85,10 @@ v5.3 STRICT SOURCES:
 - Removes duplicate TRBBannerCarousel instances.
 - Adds 12pt real spacing between banners with custom snapping.
 - Keeps X=16, Y=117, W=358, H=180.
+
+v5.3.1 BUILD FIX:
+- No behavior/layout changes.
+- Added forward declarations for TRBStringContains and TRBIsSourcesPage.
+- Moved kTRBCarouselKey declaration before strict helper usage.
+- Keeps strict Sources-only visibility, duplicate cleanup, 12pt banner spacing,
+  and X=16 / Y=117 / W=358 / H=180.

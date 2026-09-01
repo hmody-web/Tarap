@@ -536,6 +536,12 @@ static const CGFloat TRBPageGap = 12.0;
 @end
 
 
+
+// Forward declarations used by the strict Sources-only helpers below.
+static BOOL TRBStringContains(NSString *haystack, NSString *needle);
+static BOOL TRBIsSourcesPage(UIViewController *vc);
+static char kTRBCarouselKey;
+
 static BOOL TRBControllerIsActuallyVisible(UIViewController *vc) {
     if (!vc || !vc.isViewLoaded || !vc.view.window) return NO;
     if (vc.presentedViewController) return NO;
@@ -616,7 +622,7 @@ static void TRBRemoveDuplicateCarouselsInView(UIView *root, TRBBannerCarousel *k
 
 #pragma mark - Installation / page targeting
 
-static char kTRBCarouselKey;
+
 static char kTRBOriginalInsetKey;
 static char kTRBTargetScrollKey;
 static IMP TRBOriginalViewDidAppear = NULL;

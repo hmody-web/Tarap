@@ -106,3 +106,12 @@ v1.7 RUNTIME GLASS:
 - Underlying Sources controls covered by YouTube/Google/etc. do not count as frontmost.
 - Header is shown only when at least 3 Sources-home markers are actually frontmost.
 - Exact transparent PNG and system-material glass are preserved.
+
+v1.8 FORCE SOURCES TAB:
+- Header class already exists; this fixes it remaining hidden.
+- Visibility no longer depends on frontmost text markers.
+- Uses selected Sources tab + navigation root state.
+- On Sources root: hidden=NO and alpha=1 are forced every refresh.
+- On pushed child pages (YouTube/Google/Instagram/TikTok/etc.): hidden=YES.
+- On other tabs: hidden=YES.
+- Refresh interval reduced to 0.01s for instant return.

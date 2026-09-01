@@ -773,63 +773,104 @@ static BOOL TRBIsFrontmostVisibleView(UIView *view) {
     return NO;
 }
 
+static UIViewController *TRBTopVisibleController(UIViewController *vc) {
+    if (!vc) return nil;
+
+    if (vc.presentedViewController) {
+        return TRBTopVisibleController(vc.presentedViewController);
+    }
+
+    if ([vc isKindOfClass:UITabBarController.class]) {
+        UITabBarController *tab = (UITabBarController *)vc;
+        return TRBTopVisibleController(tab.selectedViewController);
+    }
+
+    if ([vc isKindOfClass:UINavigationController.class]) {
+        UINavigationController *nav = (UINavigationController *)vc;
+        return TRBTopVisibleController(nav.visibleViewController);
+    }
+
+    return vc;
+}
+
+static UITabBarController *TRBFindTabController(UIViewController *vc) {
+    if (!vc) return nil;
+
+    if ([vc isKindOfClass:UITabBarController.class]) {
+        return (UITabBarController *)vc;
+    }
+
+    for (UIViewController *child in vc.childViewControllers) {
+        UITabBarController *found = TRBFindTabController(child);
+        if (found) return found;
+    }
+
+    return nil;
+}
+
+static BOOL TRBTitleMeansSources(NSString *title) {
+    if (title.length == 0) return NO;
+
+    return [title containsString:@"المصادر"] ||
+           [title localizedCaseInsensitiveContainsString:@"Sources"];
+}
+
 static BOOL TRBWindowShowsSourcesHomeFrontmost(UIWindow *window) {
     if (!window || window.hidden || window.alpha < 0.05) return NO;
+    if (!window.rootViewController) return NO;
 
-    BOOL youtube = NO;
-    BOOL trends = NO;
-    BOOL google = NO;
-    BOOL instagram = NO;
-    BOOL tiktok = NO;
+    UITabBarController *tab = TRBFindTabController(window.rootViewController);
 
-    NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:window];
-    NSUInteger inspected = 0;
+    if (tab) {
+        UIViewController *selected = tab.selectedViewController;
+        if (!selected) return NO;
 
-    while (stack.count && inspected < 2500) {
-        UIView *v = stack.lastObject;
-        [stack removeLastObject];
-        inspected++;
+        NSString *selectedTitle = selected.tabBarItem.title ?: selected.title ?: @"";
+        BOOL sourcesTab = TRBTitleMeansSources(selectedTitle);
 
-        if (v.hidden || v.alpha < 0.05) continue;
+        // Some apps keep the visible page wrapped in UINavigationController.
+        if ([selected isKindOfClass:UINavigationController.class]) {
+            UINavigationController *nav = (UINavigationController *)selected;
 
-        NSString *text = nil;
-        if ([v isKindOfClass:UILabel.class]) {
-            text = ((UILabel *)v).text;
-        } else if ([v isKindOfClass:UIButton.class]) {
-            text = [((UIButton *)v) titleForState:UIControlStateNormal];
+            NSString *navTitle = nav.tabBarItem.title ?: nav.title ?: @"";
+            if (TRBTitleMeansSources(navTitle)) {
+                sourcesTab = YES;
+            }
+
+            // The header is ONLY for the Sources root.
+            // Any pushed page such as YouTube/Google/etc. must hide it.
+            if (sourcesTab) {
+                if (nav.viewControllers.count != 1) return NO;
+                if (nav.topViewController != nav.viewControllers.firstObject) return NO;
+            }
         }
 
-        if (text.length && TRBIsFrontmostVisibleView(v)) {
-            if ([text containsString:@"يوتيوب"] ||
-                [text localizedCaseInsensitiveContainsString:@"YouTube"]) youtube = YES;
-
-            if ([text containsString:@"ترندات"] ||
-                [text localizedCaseInsensitiveContainsString:@"Trending"]) trends = YES;
-
-            if ([text containsString:@"جوجل"] ||
-                [text localizedCaseInsensitiveContainsString:@"Google"]) google = YES;
-
-            if ([text containsString:@"انستجرام"] ||
-                [text containsString:@"انستغرام"] ||
-                [text localizedCaseInsensitiveContainsString:@"Instagram"]) instagram = YES;
-
-            if ([text containsString:@"تيك توك"] ||
-                [text localizedCaseInsensitiveContainsString:@"TikTok"]) tiktok = YES;
-        }
-
-        for (UIView *sub in v.subviews) {
-            [stack addObject:sub];
+        if (sourcesTab) {
+            UIViewController *top = TRBTopVisibleController(selected);
+            if (!top || top.presentedViewController) return NO;
+            return YES;
         }
     }
 
-    NSInteger markers =
-        (youtube ? 1 : 0) +
-        (trends ? 1 : 0) +
-        (google ? 1 : 0) +
-        (instagram ? 1 : 0) +
-        (tiktok ? 1 : 0);
+    // Fallback for a custom tab system:
+    // only trust the actually visible controller's OWN title, not a parent's title.
+    UIViewController *top = TRBTopVisibleController(window.rootViewController);
+    if (!top) return NO;
 
-    return markers >= 3;
+    NSString *title = top.title ?: @"";
+    NSString *tabTitle = top.tabBarItem.title ?: @"";
+
+    if (!TRBTitleMeansSources(title) && !TRBTitleMeansSources(tabTitle)) {
+        return NO;
+    }
+
+    if (top.navigationController) {
+        UINavigationController *nav = top.navigationController;
+        if (nav.viewControllers.count != 1) return NO;
+        if (nav.topViewController != top) return NO;
+    }
+
+    return YES;
 }
 
 static TRBSourcesTopHeaderView *TRBCreateGlobalGlassHeader(UIWindow *window) {
@@ -916,18 +957,27 @@ static TRBSourcesTopHeaderView *TRBCreateGlobalGlassHeader(UIWindow *window) {
 static void TRBRefreshGlobalGlassHeader(UIWindow *window) {
     if (!window) return;
 
-    // Always create the real runtime instance first.
     TRBSourcesTopHeaderView *header = TRBCreateGlobalGlassHeader(window);
     if (!header) return;
 
     BOOL show = TRBWindowShowsSourcesHomeFrontmost(window);
 
-    header.hidden = !show;
-    header.alpha = show ? 1.0 : 0.0;
-
     if (show) {
+        // FORCE visible while Sources root is current.
+        header.hidden = NO;
+        header.alpha = 1.0;
+        header.userInteractionEnabled = NO;
         header.layer.zPosition = 99999999.0;
+
+        // Re-assert glass effect in case UIKit/SwiftUI changed it.
+        if (!header.effect) {
+            header.effect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemMaterial];
+        }
+
         [window bringSubviewToFront:header];
+    } else {
+        header.hidden = YES;
+        header.alpha = 0.0;
     }
 }
 
@@ -1179,7 +1229,7 @@ static void TRBSourcesHeaderEntry(void) {
             refresh();
         }];
 
-        [NSTimer scheduledTimerWithTimeInterval:0.03
+        [NSTimer scheduledTimerWithTimeInterval:0.01
                                          repeats:YES
                                            block:^(__unused NSTimer *timer) {
             refresh();

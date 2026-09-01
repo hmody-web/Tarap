@@ -2,8 +2,13 @@
 set -euo pipefail
 
 rm -rf DerivedData Payload work
-xcodebuild -scheme TarabBannerHider -configuration Release -sdk iphoneos \
-  -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build
+xcodebuild -scheme TarabBannerHider \
+  -configuration Release \
+  -sdk iphoneos \
+  -destination 'generic/platform=iOS' \
+  -derivedDataPath DerivedData \
+  CODE_SIGNING_ALLOWED=NO \
+  build
 
 DYLIB="$(find DerivedData/Build/Products/Release-iphoneos -name 'libTarabBannerHider.dylib' -o -name 'TarabBannerHider.dylib' | head -1)"
 if [ -z "${DYLIB}" ]; then

@@ -8,3 +8,8 @@ Tarab Banner Hider FORCE
 - لا يعيد إضافة TarabRemoteBanner السابق.
 
 ارفع محتويات هذا المشروع إلى Codemagic وشغّل workflow: ios-unsigned.
+
+v1.1 BUILD FIX:
+- Added explicit xcodebuild destination:
+  -destination 'generic/platform=iOS'
+- No changes to the forced banner hiding logic.

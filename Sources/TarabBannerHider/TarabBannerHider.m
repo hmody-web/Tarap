@@ -1426,6 +1426,29 @@ static void TRBSourcesHeaderEntry(void) {
     [NSUserDefaults.standardUserDefaults setDouble:value forKey:@"TRB_targetHeight"];
 }
 
+
+- (void)trbPersistCurrentValues {
+    NSUserDefaults *d = NSUserDefaults.standardUserDefaults;
+
+    double sx = [d doubleForKey:@"TRB_targetX"];
+    double sy = [d doubleForKey:@"TRB_targetY"];
+    double sw = [d doubleForKey:@"TRB_targetWidth"];
+    double sh = [d doubleForKey:@"TRB_targetHeight"];
+
+    if (fabs(sx - self.targetX) > 0.0001) {
+        [d setDouble:self.targetX forKey:@"TRB_targetX"];
+    }
+    if (fabs(sy - self.targetY) > 0.0001) {
+        [d setDouble:self.targetY forKey:@"TRB_targetY"];
+    }
+    if (fabs(sw - self.targetWidth) > 0.0001) {
+        [d setDouble:self.targetWidth forKey:@"TRB_targetWidth"];
+    }
+    if (fabs(sh - self.targetHeight) > 0.0001) {
+        [d setDouble:self.targetHeight forKey:@"TRB_targetHeight"];
+    }
+}
+
 @end
 
 #pragma mark - v1.9 Force SwiftUI AnyView hosting frame
@@ -1619,6 +1642,7 @@ static void TRBInstallAnyViewFrameForce_v19(void) {
 
 
 static void TRBScanAndForceHostingViews(void) {
+    [[TRBRuntimeSettings shared] trbPersistCurrentValues];
     for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
         if (![scene isKindOfClass:UIWindowScene.class]) continue;
 
@@ -1685,6 +1709,10 @@ static void TRBScanAndForceHostingViews(void) {
 
 static void TRBApplySavedRuntimeFrame(void) {
     TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
+
+    // FLEX may edit ivars directly and bypass Objective-C setters.
+    // Persist current in-memory values on every pass.
+    [cfg trbPersistCurrentValues];
     CGRect wanted = CGRectMake(
         cfg.targetX,
         cfg.targetY,

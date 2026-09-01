@@ -170,3 +170,10 @@ v1.12.1 BUILD FIX:
 - Fixes implicit-function-declaration build failure.
 - No behavior changes.
 - Persistent FLEX runtime settings remain intact.
+
+v1.13 FLEX PERSIST:
+- Fixes FLEX edits not saving when FLEX writes ivars directly.
+- Every 0.02s the current TRBRuntimeSettings values are compared against NSUserDefaults.
+- Any changed X/Y/Width/Height value is persisted automatically.
+- No setter call is required.
+- Saved values load again on the next app launch.

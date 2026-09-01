@@ -144,3 +144,12 @@ v5.6 SOURCES GUARD:
 - Main Sources recognition uses visible YouTube + Trending controls together,
   with a standard selected-tab fallback.
 - Still uses persistent JSON/image cache and no UIPageControl.
+
+v5.7 SOURCES SUBTREE:
+- Keeps all v5.6 cache/theme/spacing changes.
+- Banner is mounted inside the Sources content subtree itself.
+- It is never hidden on viewWillDisappear.
+- Child pages naturally cover it because they are above the Sources subtree.
+- Returning to Sources reveals the already-mounted banner instantly.
+- Switching tabs hides the entire Sources subtree naturally.
+- Timer is install-only fallback; it never hides or changes global z-order.

@@ -637,6 +637,7 @@ static BOOL TRBStringContains(NSString *haystack, NSString *needle);
 static BOOL TRBIsSourcesPage(UIViewController *vc);
 static char kTRBCarouselKey;
 static char kTRBBackdropKey;
+static char kTRBSourcesHostKey;
 
 static NSHashTable<UIViewController *> *TRBRegisteredControllers = nil;
 
@@ -769,7 +770,7 @@ static UIView *TRBEnsureBackdrop(UIViewController *vc) {
         backdrop.accessibilityIdentifier = @"TRBBannerBackdrop";
         backdrop.userInteractionEnabled = NO;
         backdrop.backgroundColor = TRBThemeBackgroundColor();
-        backdrop.layer.zPosition = 9999998.0;
+        backdrop.layer.zPosition = 20.0;
 
         [vc.view addSubview:backdrop];
         objc_setAssociatedObject(
@@ -782,7 +783,7 @@ static UIView *TRBEnsureBackdrop(UIViewController *vc) {
 
     backdrop.backgroundColor = TRBThemeBackgroundColor();
     backdrop.frame = CGRectMake(0.0, 117.0, vc.view.bounds.size.width, 180.0);
-    backdrop.layer.zPosition = 9999998.0;
+    backdrop.layer.zPosition = 20.0;
 
     return backdrop;
 }
@@ -796,33 +797,35 @@ static void TRBSetBannerVisibility(UIViewController *vc, BOOL visible) {
 }
 
 
-static BOOL TRBViewIsEffectivelyVisible(UIView *view) {
+
+static BOOL TRBViewIsFrontmostEnough(UIView *view) {
     if (!view || !view.window || view.hidden || view.alpha < 0.05) return NO;
 
-    UIView *cursor = view;
-    while (cursor) {
-        if (cursor.hidden || cursor.alpha < 0.05) return NO;
-        cursor = cursor.superview;
+    CGRect r = [view convertRect:view.bounds toView:view.window];
+    if (!CGRectIntersectsRect(r, view.window.bounds)) return NO;
+
+    CGPoint p = CGPointMake(CGRectGetMidX(r), CGRectGetMidY(r));
+    UIView *hit = [view.window hitTest:p withEvent:nil];
+    if (!hit) return NO;
+
+    if (hit == view || [hit isDescendantOfView:view]) return YES;
+
+    UIView *a = view.superview;
+    for (NSUInteger i = 0; a && i < 5; i++, a = a.superview) {
+        if (hit == a || [hit isDescendantOfView:a]) return YES;
     }
 
-    CGRect rect = [view convertRect:view.bounds toView:view.window];
-    return CGRectIntersectsRect(rect, view.window.bounds) &&
-           rect.size.width > 1.0 &&
-           rect.size.height > 1.0;
+    return NO;
 }
 
-static BOOL TRBVisibleViewTreeContainsText(UIView *root, NSString *needle) {
-    if (!root || needle.length == 0) return NO;
+static UIView *TRBFindFrontmostTextView(UIView *root, NSString *needle) {
+    if (!root || needle.length == 0) return nil;
 
     NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:root];
-    NSUInteger inspected = 0;
 
-    while (stack.count && inspected < 1800) {
+    while (stack.count) {
         UIView *v = stack.lastObject;
         [stack removeLastObject];
-        inspected++;
-
-        if (!TRBViewIsEffectivelyVisible(v)) continue;
 
         NSString *text = nil;
         if ([v isKindOfClass:UILabel.class]) {
@@ -831,8 +834,8 @@ static BOOL TRBVisibleViewTreeContainsText(UIView *root, NSString *needle) {
             text = [((UIButton *)v) titleForState:UIControlStateNormal];
         }
 
-        if (TRBStringContains(text, needle)) {
-            return YES;
+        if (TRBStringContains(text, needle) && TRBViewIsFrontmostEnough(v)) {
+            return v;
         }
 
         for (UIView *sub in v.subviews) {
@@ -840,97 +843,60 @@ static BOOL TRBVisibleViewTreeContainsText(UIView *root, NSString *needle) {
         }
     }
 
-    return NO;
+    return nil;
 }
 
-static BOOL TRBIsVisibleSourcesHome(UIViewController *vc) {
-    if (!vc || !vc.isViewLoaded || !vc.view.window) return NO;
-    if (!TRBViewIsEffectivelyVisible(vc.view)) return NO;
+static UIView *TRBCommonAncestor(UIView *a, UIView *b) {
+    if (!a || !b) return nil;
 
-    // Main Sources page has these two visible controls together.
-    BOOL youtube = TRBVisibleViewTreeContainsText(vc.view, @"يوتيوب");
-    BOOL trending = TRBVisibleViewTreeContainsText(vc.view, @"ترندات");
+    NSHashTable<UIView *> *table = [NSHashTable weakObjectsHashTable];
+    for (UIView *v = a; v; v = v.superview) [table addObject:v];
 
-    if (youtube && trending) {
-        return YES;
-    }
-
-    // Secondary path for standard tab containers.
-    UITabBarItem *selected = vc.tabBarController.tabBar.selectedItem;
-    NSString *title = selected.title ?: @"";
-
-    if (TRBStringContains(title, @"المصادر") &&
-        !vc.presentedViewController) {
-        // Do not trust title alone for pushed child pages.
-        if (vc.navigationController &&
-            vc.navigationController.topViewController != vc) {
-            return NO;
-        }
-        return YES;
-    }
-
-    return NO;
-}
-
-static void TRBCollectControllers(UIViewController *vc,
-                                  NSMutableArray<UIViewController *> *result) {
-    if (!vc) return;
-
-    [result addObject:vc];
-
-    if (vc.presentedViewController) {
-        TRBCollectControllers(vc.presentedViewController, result);
-    }
-
-    if ([vc isKindOfClass:UINavigationController.class]) {
-        UIViewController *top = ((UINavigationController *)vc).topViewController;
-        if (top) TRBCollectControllers(top, result);
-    }
-
-    if ([vc isKindOfClass:UITabBarController.class]) {
-        UIViewController *selected = ((UITabBarController *)vc).selectedViewController;
-        if (selected) TRBCollectControllers(selected, result);
-    }
-
-    for (UIViewController *child in vc.childViewControllers) {
-        if (child.isViewLoaded && child.view.window) {
-            TRBCollectControllers(child, result);
-        }
-    }
-}
-
-static UIViewController *TRBFindVisibleSourcesController(void) {
-    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
-        if (![scene isKindOfClass:UIWindowScene.class]) continue;
-
-        UIWindowScene *ws = (UIWindowScene *)scene;
-        for (UIWindow *window in ws.windows) {
-            if (window.hidden || window.alpha < 0.05 || !window.rootViewController) continue;
-
-            NSMutableArray<UIViewController *> *controllers = [NSMutableArray array];
-            TRBCollectControllers(window.rootViewController, controllers);
-
-            // Prefer deepest / later controller first.
-            for (UIViewController *vc in controllers.reverseObjectEnumerator) {
-                if (TRBIsVisibleSourcesHome(vc)) {
-                    return vc;
-                }
-            }
-        }
+    for (UIView *v = b; v; v = v.superview) {
+        if ([table containsObject:v]) return v;
     }
 
     return nil;
 }
 
-static void TRBHideAllRegisteredBannersExcept(UIViewController *keep) {
-    for (UIViewController *vc in TRBRegisteredControllers.allObjects) {
-        if (!vc || vc == keep) continue;
+static UIView *TRBChooseSourcesHost(UIViewController *vc) {
+    if (!vc || !vc.isViewLoaded || !vc.view.window) return nil;
 
-        TRBBannerCarousel *carousel = objc_getAssociatedObject(vc, &kTRBCarouselKey);
-        UIView *backdrop = objc_getAssociatedObject(vc, &kTRBBackdropKey);
+    UIView *youtube = TRBFindFrontmostTextView(vc.view, @"يوتيوب");
+    UIView *trending = TRBFindFrontmostTextView(vc.view, @"ترندات");
 
-        if (carousel) carousel.hidden = YES;
-        if (backdrop) backdrop.hidden = YES;
+    if (!youtube || !trending) return nil;
+
+    UIView *host = TRBCommonAncestor(youtube, trending);
+    if (!host) return nil;
+
+    while (host.superview &&
+           host.superview != vc.view &&
+           (host.bounds.size.width < 350.0 || host.bounds.size.height < 400.0)) {
+        host = host.superview;
+    }
+
+    if (host.bounds.size.width < 350.0 || host.bounds.size.height < 400.0) {
+        host = vc.view;
+    }
+
+    return host;
+}
+
+static void TRBPositionInHost(UIViewController *vc,
+                              UIView *host,
+                              UIView *backdrop,
+                              TRBBannerCarousel *carousel) {
+    CGRect bg = CGRectMake(0.0, 117.0, vc.view.bounds.size.width, 180.0);
+    CGRect bn = CGRectMake(16.0, 117.0, 358.0, 180.0);
+
+    if (backdrop) {
+        backdrop.frame = [host convertRect:bg fromView:vc.view];
+        backdrop.backgroundColor = TRBThemeBackgroundColor();
+    }
+
+    if (carousel) {
+        carousel.frame = [host convertRect:bn fromView:vc.view];
     }
 }
 
@@ -1022,120 +988,90 @@ static UIScrollView *TRBFindMainScrollView(UIView *root) {
 }
 
 static void TRBInstallBannerIntoController(UIViewController *vc) {
-    TRBRegisterController(vc);
-    if (!TRBIsVisibleSourcesHome(vc)) {
-        TRBHideCarouselForController(vc);
-        return;
+    UIView *host = TRBChooseSourcesHost(vc);
+    if (!host) return;
+
+    UIView *oldHost = objc_getAssociatedObject(vc, &kTRBSourcesHostKey);
+    UIView *backdrop = objc_getAssociatedObject(vc, &kTRBBackdropKey);
+    TRBBannerCarousel *carousel = objc_getAssociatedObject(vc, &kTRBCarouselKey);
+
+    if (oldHost != host) {
+        if (backdrop.superview) [backdrop removeFromSuperview];
+        if (carousel.superview) [carousel removeFromSuperview];
+        objc_setAssociatedObject(vc, &kTRBSourcesHostKey, host, OBJC_ASSOCIATION_ASSIGN);
     }
 
-    UIView *backdrop = TRBEnsureBackdrop(vc);
+    if (!backdrop) {
+        backdrop = [[UIView alloc] initWithFrame:CGRectZero];
+        backdrop.accessibilityIdentifier = @"TRBBannerBackdrop";
+        backdrop.userInteractionEnabled = NO;
+        backdrop.backgroundColor = TRBThemeBackgroundColor();
+        objc_setAssociatedObject(vc, &kTRBBackdropKey, backdrop, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+
+    if (!carousel) {
+        carousel = [[TRBBannerCarousel alloc] initWithFrame:CGRectZero];
+        carousel.autoresizingMask = UIViewAutoresizingNone;
+        carousel.accessibilityIdentifier = @"TRBBannerCarousel";
+        carousel.hidden = NO;
+        [carousel applyCachedDataImmediately];
+        objc_setAssociatedObject(vc, &kTRBCarouselKey, carousel, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+
+    if (backdrop.superview != host) [host addSubview:backdrop];
+    if (carousel.superview != host) [host addSubview:carousel];
+
+    backdrop.layer.zPosition = 20.0;
+    carousel.layer.zPosition = 21.0;
+
+    TRBPositionInHost(vc, host, backdrop, carousel);
+
     backdrop.hidden = NO;
-    [vc.view bringSubviewToFront:backdrop];
+    carousel.hidden = NO;
 
-    TRBBannerCarousel *existing = objc_getAssociatedObject(vc, &kTRBCarouselKey);
-    TRBRemoveDuplicateCarouselsInView(vc.view, existing);
+    [host bringSubviewToFront:backdrop];
+    [host bringSubviewToFront:carousel];
 
-    if (existing && existing.superview == vc.view) {
-        existing.hidden = NO;
-        UIView *existingBackdrop = objc_getAssociatedObject(vc, &kTRBBackdropKey);
-        if (existingBackdrop) existingBackdrop.hidden = NO;
-
-        if (existing.items.count == 0) {
-            [existing applyCachedDataImmediately];
-        }
-
-        existing.frame = CGRectMake(16.0, 117.0, 358.0, 180.0);
-        existing.layer.zPosition = 9999999.0;
-        existing.hidden = NO;
-        [vc.view bringSubviewToFront:backdrop];
-        [vc.view bringSubviewToFront:existing];
-        [existing loadRemoteData];
-        return;
-    }
-
-    if (existing) {
-        [existing.timer invalidate];
-        existing.timer = nil;
-        [existing removeFromSuperview];
-        objc_setAssociatedObject(vc, &kTRBCarouselKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    }
-
-    TRBBannerCarousel *carousel = [[TRBBannerCarousel alloc] initWithFrame:CGRectMake(16.0, 117.0, 358.0, 180.0)];
-    carousel.autoresizingMask = UIViewAutoresizingNone;
-
-    BOOL restoredFromCache = [carousel applyCachedDataImmediately];
-    carousel.hidden = !restoredFromCache;
-    carousel.tag = 0x54524231;
-    carousel.layer.zPosition = 9999999.0;
-
-    [vc.view addSubview:carousel];
-    [vc.view bringSubviewToFront:backdrop];
-    [vc.view bringSubviewToFront:carousel];
-    objc_setAssociatedObject(vc, &kTRBCarouselKey, carousel, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    TRBRemoveDuplicateCarouselsInView(vc.view, carousel);
     [carousel loadRemoteData];
 }
 
 static void TRBPatchedViewDidAppear(UIViewController *self, SEL _cmd, BOOL animated) {
     ((void (*)(id, SEL, BOOL))TRBOriginalViewDidAppear)(self, _cmd, animated);
-    if (TRBIsVisibleSourcesHome(self)) {
-        TRBBannerCarousel *carousel = objc_getAssociatedObject(self, &kTRBCarouselKey);
-        UIView *backdrop = objc_getAssociatedObject(self, &kTRBBackdropKey);
-
-        if (backdrop) backdrop.hidden = NO;
-
-        if (carousel) {
-            if (carousel.items.count == 0) {
-                [carousel applyCachedDataImmediately];
-            }
-            carousel.hidden = NO;
-        }
-
-        // Do it now, not after a delayed page pass.
-        TRBInstallBannerIntoController(self);
-    } else {
-        TRBHideCarouselForController(self);
-    }
+    TRBInstallBannerIntoController(self);
 }
 
 static void TRBPatchedViewWillDisappear(UIViewController *self, SEL _cmd, BOOL animated) {
-    TRBHideCarouselForController(self);
+    // Never hide/remove the Sources banner.
+    // It remains in the Sources subtree underneath the next page,
+    // so returning reveals it instantly with no hidden interval.
     if (TRBOriginalViewWillDisappear) {
         ((void (*)(id, SEL, BOOL))TRBOriginalViewWillDisappear)(self, _cmd, animated);
     }
 }
 
 static void TRBPatchedViewDidLayout(UIViewController *self, SEL _cmd) {
-    if (TRBOriginalViewDidLayout) ((void (*)(id, SEL))TRBOriginalViewDidLayout)(self, _cmd);
+    if (TRBOriginalViewDidLayout) {
+        ((void (*)(id, SEL))TRBOriginalViewDidLayout)(self, _cmd);
+    }
 
-    TRBBannerCarousel *carousel = objc_getAssociatedObject(self, &kTRBCarouselKey);
-    UIView *backdrop = objc_getAssociatedObject(self, &kTRBBackdropKey);
-    if (!TRBIsVisibleSourcesHome(self)) {
-        if (carousel) carousel.hidden = YES;
-        if (backdrop) backdrop.hidden = YES;
+    UIView *host = TRBChooseSourcesHost(self);
+    if (!host) {
+        // A child page is currently above Sources. Do nothing.
+        // The banner stays mounted underneath and is never hidden.
         return;
     }
 
-    if (!carousel || carousel.superview != self.view) {
+    UIView *backdrop = objc_getAssociatedObject(self, &kTRBBackdropKey);
+    TRBBannerCarousel *carousel = objc_getAssociatedObject(self, &kTRBCarouselKey);
+
+    if (!backdrop || !carousel || backdrop.superview != host || carousel.superview != host) {
         TRBInstallBannerIntoController(self);
         return;
     }
 
-    if (!backdrop || backdrop.superview != self.view) {
-        backdrop = TRBEnsureBackdrop(self);
-    }
-
-    backdrop.frame = CGRectMake(0.0, 117.0, self.view.bounds.size.width, 180.0);
-    backdrop.backgroundColor = TRBThemeBackgroundColor();
-    backdrop.layer.zPosition = 9999998.0;
+    TRBPositionInHost(self, host, backdrop, carousel);
     backdrop.hidden = NO;
-
-    carousel.frame = CGRectMake(16.0, 117.0, 358.0, 180.0);
-    carousel.layer.zPosition = 9999999.0;
     carousel.hidden = NO;
-    TRBRemoveDuplicateCarouselsInView(self.view, carousel);
-    [self.view bringSubviewToFront:backdrop];
-    [self.view bringSubviewToFront:carousel];
 }
 
 static void TRBInstallHooks(void) {
@@ -1160,64 +1096,45 @@ static void TRBInstallHooks(void) {
 
 static NSTimer *TRBVisibilityTimer = nil;
 
-static void TRBReconcileVisibility(void) {
-    UIViewController *sources = TRBFindVisibleSourcesController();
+static void TRBInstallVisibleSourcesIfNeeded(void) {
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class]) continue;
 
-    // First hide every injected banner from every other page.
-    TRBHideAllRegisteredBannersExcept(sources);
+        UIWindowScene *ws = (UIWindowScene *)scene;
+        for (UIWindow *window in ws.windows) {
+            if (window.hidden || !window.rootViewController) continue;
 
-    if (!sources) {
-        return;
-    }
+            NSMutableArray<UIViewController *> *stack =
+                [NSMutableArray arrayWithObject:window.rootViewController];
 
-    // Sources is visible: force its banner/background back immediately.
-    TRBRegisterController(sources);
+            while (stack.count) {
+                UIViewController *vc = stack.lastObject;
+                [stack removeLastObject];
 
-    TRBBannerCarousel *carousel = objc_getAssociatedObject(sources, &kTRBCarouselKey);
-    UIView *backdrop = objc_getAssociatedObject(sources, &kTRBBackdropKey);
+                if (TRBChooseSourcesHost(vc)) {
+                    TRBInstallBannerIntoController(vc);
+                }
 
-    if (!carousel || carousel.superview != sources.view) {
-        TRBInstallBannerIntoController(sources);
-        carousel = objc_getAssociatedObject(sources, &kTRBCarouselKey);
-        backdrop = objc_getAssociatedObject(sources, &kTRBBackdropKey);
-    }
-
-    if (backdrop) {
-        backdrop.hidden = NO;
-        backdrop.backgroundColor = TRBThemeBackgroundColor();
-        backdrop.frame = CGRectMake(0.0, 117.0, sources.view.bounds.size.width, 180.0);
-        backdrop.layer.zPosition = 9999998.0;
-        [sources.view bringSubviewToFront:backdrop];
-    }
-
-    if (carousel) {
-        if (carousel.items.count == 0) {
-            [carousel applyCachedDataImmediately];
+                if (vc.presentedViewController) [stack addObject:vc.presentedViewController];
+                for (UIViewController *child in vc.childViewControllers) {
+                    [stack addObject:child];
+                }
+            }
         }
-
-        carousel.hidden = NO;
-        carousel.frame = CGRectMake(16.0, 117.0, 358.0, 180.0);
-        carousel.layer.zPosition = 9999999.0;
-        [sources.view bringSubviewToFront:carousel];
-
-        // Refresh network only if this instance has not requested it yet.
-        [carousel loadRemoteData];
     }
 }
 
 static void TRBStartVisibilityTimer(void) {
     if (TRBVisibilityTimer) return;
 
-    TRBVisibilityTimer = [NSTimer scheduledTimerWithTimeInterval:0.10
+    TRBVisibilityTimer = [NSTimer scheduledTimerWithTimeInterval:0.25
                                                          repeats:YES
                                                            block:^(__unused NSTimer *timer) {
-        TRBReconcileVisibility();
+        TRBInstallVisibleSourcesIfNeeded();
     }];
 
     [[NSRunLoop mainRunLoop] addTimer:TRBVisibilityTimer forMode:NSRunLoopCommonModes];
-
-    // First reconciliation immediately, not after the first timer tick.
-    TRBReconcileVisibility();
+    TRBInstallVisibleSourcesIfNeeded();
 }
 
 __attribute__((constructor))
@@ -1231,7 +1148,7 @@ static void TRBConstructor(void) {
                         object:nil
                          queue:NSOperationQueue.mainQueue
                     usingBlock:^(__unused NSNotification *note) {
-            TRBReconcileVisibility();
+            TRBInstallVisibleSourcesIfNeeded();
         }];
 
         [[NSNotificationCenter defaultCenter]
@@ -1239,7 +1156,7 @@ static void TRBConstructor(void) {
                         object:nil
                          queue:NSOperationQueue.mainQueue
                     usingBlock:^(__unused NSNotification *note) {
-            TRBReconcileVisibility();
+            TRBInstallVisibleSourcesIfNeeded();
         }];
     });
 }

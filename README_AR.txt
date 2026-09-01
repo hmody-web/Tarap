@@ -132,3 +132,15 @@ v5.5 INSTANT + OFFLINE CACHE:
 - UIPageControl is not created at all, so _UIPageControlIndicatorContentView is absent.
 - Custom-tab fallback reconcile interval reduced to 0.15 sec.
 - Keeps theme-aware full-width backdrop, X=16 Y=117 W=358 H=180, and 12pt page gap.
+
+v5.6 SOURCES GUARD:
+- Preserves all v5.5 cache/theme/size/spacing changes.
+- Replaces fragile lifecycle-only visibility with a global Sources-page guard.
+- Every 0.10 sec the current visible controller tree is inspected.
+- Exactly one banner is allowed: only on the visible main Sources screen.
+- All banners/backdrops attached to other pages are forcibly hidden.
+- Returning to Sources forces cached banner + backdrop visible immediately.
+- Initial reconciliation runs immediately, not after timer delay.
+- Main Sources recognition uses visible YouTube + Trending controls together,
+  with a standard selected-tab fallback.
+- Still uses persistent JSON/image cache and no UIPageControl.

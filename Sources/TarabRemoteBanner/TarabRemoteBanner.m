@@ -638,6 +638,20 @@ static BOOL TRBIsSourcesPage(UIViewController *vc);
 static char kTRBCarouselKey;
 static char kTRBBackdropKey;
 
+static NSHashTable<UIViewController *> *TRBRegisteredControllers = nil;
+
+static void TRBRegisterController(UIViewController *vc) {
+    if (!vc) return;
+
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        TRBRegisteredControllers = [NSHashTable weakObjectsHashTable];
+    });
+
+    [TRBRegisteredControllers addObject:vc];
+}
+
+
 static BOOL TRBControllerIsActuallyVisible(UIViewController *vc) {
     if (!vc || !vc.isViewLoaded || !vc.view.window) return NO;
     if (vc.presentedViewController) return NO;
@@ -781,6 +795,145 @@ static void TRBSetBannerVisibility(UIViewController *vc, BOOL visible) {
     if (backdrop) backdrop.hidden = !visible;
 }
 
+
+static BOOL TRBViewIsEffectivelyVisible(UIView *view) {
+    if (!view || !view.window || view.hidden || view.alpha < 0.05) return NO;
+
+    UIView *cursor = view;
+    while (cursor) {
+        if (cursor.hidden || cursor.alpha < 0.05) return NO;
+        cursor = cursor.superview;
+    }
+
+    CGRect rect = [view convertRect:view.bounds toView:view.window];
+    return CGRectIntersectsRect(rect, view.window.bounds) &&
+           rect.size.width > 1.0 &&
+           rect.size.height > 1.0;
+}
+
+static BOOL TRBVisibleViewTreeContainsText(UIView *root, NSString *needle) {
+    if (!root || needle.length == 0) return NO;
+
+    NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:root];
+    NSUInteger inspected = 0;
+
+    while (stack.count && inspected < 1800) {
+        UIView *v = stack.lastObject;
+        [stack removeLastObject];
+        inspected++;
+
+        if (!TRBViewIsEffectivelyVisible(v)) continue;
+
+        NSString *text = nil;
+        if ([v isKindOfClass:UILabel.class]) {
+            text = ((UILabel *)v).text;
+        } else if ([v isKindOfClass:UIButton.class]) {
+            text = [((UIButton *)v) titleForState:UIControlStateNormal];
+        }
+
+        if (TRBStringContains(text, needle)) {
+            return YES;
+        }
+
+        for (UIView *sub in v.subviews) {
+            [stack addObject:sub];
+        }
+    }
+
+    return NO;
+}
+
+static BOOL TRBIsVisibleSourcesHome(UIViewController *vc) {
+    if (!vc || !vc.isViewLoaded || !vc.view.window) return NO;
+    if (!TRBViewIsEffectivelyVisible(vc.view)) return NO;
+
+    // Main Sources page has these two visible controls together.
+    BOOL youtube = TRBVisibleViewTreeContainsText(vc.view, @"يوتيوب");
+    BOOL trending = TRBVisibleViewTreeContainsText(vc.view, @"ترندات");
+
+    if (youtube && trending) {
+        return YES;
+    }
+
+    // Secondary path for standard tab containers.
+    UITabBarItem *selected = vc.tabBarController.tabBar.selectedItem;
+    NSString *title = selected.title ?: @"";
+
+    if (TRBStringContains(title, @"المصادر") &&
+        !vc.presentedViewController) {
+        // Do not trust title alone for pushed child pages.
+        if (vc.navigationController &&
+            vc.navigationController.topViewController != vc) {
+            return NO;
+        }
+        return YES;
+    }
+
+    return NO;
+}
+
+static void TRBCollectControllers(UIViewController *vc,
+                                  NSMutableArray<UIViewController *> *result) {
+    if (!vc) return;
+
+    [result addObject:vc];
+
+    if (vc.presentedViewController) {
+        TRBCollectControllers(vc.presentedViewController, result);
+    }
+
+    if ([vc isKindOfClass:UINavigationController.class]) {
+        UIViewController *top = ((UINavigationController *)vc).topViewController;
+        if (top) TRBCollectControllers(top, result);
+    }
+
+    if ([vc isKindOfClass:UITabBarController.class]) {
+        UIViewController *selected = ((UITabBarController *)vc).selectedViewController;
+        if (selected) TRBCollectControllers(selected, result);
+    }
+
+    for (UIViewController *child in vc.childViewControllers) {
+        if (child.isViewLoaded && child.view.window) {
+            TRBCollectControllers(child, result);
+        }
+    }
+}
+
+static UIViewController *TRBFindVisibleSourcesController(void) {
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class]) continue;
+
+        UIWindowScene *ws = (UIWindowScene *)scene;
+        for (UIWindow *window in ws.windows) {
+            if (window.hidden || window.alpha < 0.05 || !window.rootViewController) continue;
+
+            NSMutableArray<UIViewController *> *controllers = [NSMutableArray array];
+            TRBCollectControllers(window.rootViewController, controllers);
+
+            // Prefer deepest / later controller first.
+            for (UIViewController *vc in controllers.reverseObjectEnumerator) {
+                if (TRBIsVisibleSourcesHome(vc)) {
+                    return vc;
+                }
+            }
+        }
+    }
+
+    return nil;
+}
+
+static void TRBHideAllRegisteredBannersExcept(UIViewController *keep) {
+    for (UIViewController *vc in TRBRegisteredControllers.allObjects) {
+        if (!vc || vc == keep) continue;
+
+        TRBBannerCarousel *carousel = objc_getAssociatedObject(vc, &kTRBCarouselKey);
+        UIView *backdrop = objc_getAssociatedObject(vc, &kTRBBackdropKey);
+
+        if (carousel) carousel.hidden = YES;
+        if (backdrop) backdrop.hidden = YES;
+    }
+}
+
 #pragma mark - Installation / page targeting
 
 
@@ -869,7 +1022,8 @@ static UIScrollView *TRBFindMainScrollView(UIView *root) {
 }
 
 static void TRBInstallBannerIntoController(UIViewController *vc) {
-    if (!TRBIsStrictSourcesRoot(vc)) {
+    TRBRegisterController(vc);
+    if (!TRBIsVisibleSourcesHome(vc)) {
         TRBHideCarouselForController(vc);
         return;
     }
@@ -924,7 +1078,7 @@ static void TRBInstallBannerIntoController(UIViewController *vc) {
 
 static void TRBPatchedViewDidAppear(UIViewController *self, SEL _cmd, BOOL animated) {
     ((void (*)(id, SEL, BOOL))TRBOriginalViewDidAppear)(self, _cmd, animated);
-    if (TRBIsStrictSourcesRoot(self)) {
+    if (TRBIsVisibleSourcesHome(self)) {
         TRBBannerCarousel *carousel = objc_getAssociatedObject(self, &kTRBCarouselKey);
         UIView *backdrop = objc_getAssociatedObject(self, &kTRBBackdropKey);
 
@@ -956,7 +1110,7 @@ static void TRBPatchedViewDidLayout(UIViewController *self, SEL _cmd) {
 
     TRBBannerCarousel *carousel = objc_getAssociatedObject(self, &kTRBCarouselKey);
     UIView *backdrop = objc_getAssociatedObject(self, &kTRBBackdropKey);
-    if (!TRBIsStrictSourcesRoot(self)) {
+    if (!TRBIsVisibleSourcesHome(self)) {
         if (carousel) carousel.hidden = YES;
         if (backdrop) backdrop.hidden = YES;
         return;
@@ -1006,58 +1160,64 @@ static void TRBInstallHooks(void) {
 
 static NSTimer *TRBVisibilityTimer = nil;
 
-static UIViewController *TRBTopControllerFrom(UIViewController *vc) {
-    if (!vc) return nil;
-
-    if (vc.presentedViewController) {
-        return TRBTopControllerFrom(vc.presentedViewController);
-    }
-
-    if ([vc isKindOfClass:UINavigationController.class]) {
-        return TRBTopControllerFrom(((UINavigationController *)vc).topViewController);
-    }
-
-    if ([vc isKindOfClass:UITabBarController.class]) {
-        return TRBTopControllerFrom(((UITabBarController *)vc).selectedViewController);
-    }
-
-    for (UIViewController *child in vc.childViewControllers.reverseObjectEnumerator) {
-        if (child.isViewLoaded && child.view.window) {
-            UIViewController *top = TRBTopControllerFrom(child);
-            if (top) return top;
-        }
-    }
-
-    return vc;
-}
-
 static void TRBReconcileVisibility(void) {
-    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
-        if (![scene isKindOfClass:UIWindowScene.class]) continue;
-        UIWindowScene *ws = (UIWindowScene *)scene;
+    UIViewController *sources = TRBFindVisibleSourcesController();
 
-        for (UIWindow *window in ws.windows) {
-            if (!window.isKeyWindow || !window.rootViewController) continue;
+    // First hide every injected banner from every other page.
+    TRBHideAllRegisteredBannersExcept(sources);
 
-            UIViewController *top = TRBTopControllerFrom(window.rootViewController);
-            if (!top) continue;
+    if (!sources) {
+        return;
+    }
 
-            if (TRBIsStrictSourcesRoot(top)) {
-                TRBInstallBannerIntoController(top);
-            }
+    // Sources is visible: force its banner/background back immediately.
+    TRBRegisterController(sources);
+
+    TRBBannerCarousel *carousel = objc_getAssociatedObject(sources, &kTRBCarouselKey);
+    UIView *backdrop = objc_getAssociatedObject(sources, &kTRBBackdropKey);
+
+    if (!carousel || carousel.superview != sources.view) {
+        TRBInstallBannerIntoController(sources);
+        carousel = objc_getAssociatedObject(sources, &kTRBCarouselKey);
+        backdrop = objc_getAssociatedObject(sources, &kTRBBackdropKey);
+    }
+
+    if (backdrop) {
+        backdrop.hidden = NO;
+        backdrop.backgroundColor = TRBThemeBackgroundColor();
+        backdrop.frame = CGRectMake(0.0, 117.0, sources.view.bounds.size.width, 180.0);
+        backdrop.layer.zPosition = 9999998.0;
+        [sources.view bringSubviewToFront:backdrop];
+    }
+
+    if (carousel) {
+        if (carousel.items.count == 0) {
+            [carousel applyCachedDataImmediately];
         }
+
+        carousel.hidden = NO;
+        carousel.frame = CGRectMake(16.0, 117.0, 358.0, 180.0);
+        carousel.layer.zPosition = 9999999.0;
+        [sources.view bringSubviewToFront:carousel];
+
+        // Refresh network only if this instance has not requested it yet.
+        [carousel loadRemoteData];
     }
 }
 
 static void TRBStartVisibilityTimer(void) {
     if (TRBVisibilityTimer) return;
 
-    TRBVisibilityTimer = [NSTimer scheduledTimerWithTimeInterval:0.15
+    TRBVisibilityTimer = [NSTimer scheduledTimerWithTimeInterval:0.10
                                                          repeats:YES
                                                            block:^(__unused NSTimer *timer) {
         TRBReconcileVisibility();
     }];
+
     [[NSRunLoop mainRunLoop] addTimer:TRBVisibilityTimer forMode:NSRunLoopCommonModes];
+
+    // First reconciliation immediately, not after the first timer tick.
+    TRBReconcileVisibility();
 }
 
 __attribute__((constructor))
@@ -1065,5 +1225,21 @@ static void TRBConstructor(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         TRBInstallHooks();
         TRBStartVisibilityTimer();
+
+        [[NSNotificationCenter defaultCenter]
+            addObserverForName:UIApplicationDidBecomeActiveNotification
+                        object:nil
+                         queue:NSOperationQueue.mainQueue
+                    usingBlock:^(__unused NSNotification *note) {
+            TRBReconcileVisibility();
+        }];
+
+        [[NSNotificationCenter defaultCenter]
+            addObserverForName:UIWindowDidBecomeKeyNotification
+                        object:nil
+                         queue:NSOperationQueue.mainQueue
+                    usingBlock:^(__unused NSNotification *note) {
+            TRBReconcileVisibility();
+        }];
     });
 }

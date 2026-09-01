@@ -340,3 +340,136 @@ static void TRBPagingBannerHiderEntry_v13(void) {
         }
     });
 }
+
+
+#pragma mark - v1.4 Hide residual SwiftUI page dots
+
+static char kTRBDotsCoverKey;
+
+static UIColor *TRBDotsBackgroundColor(void) {
+    if (@available(iOS 13.0, *)) {
+        return UIColor.systemBackgroundColor;
+    }
+    return UIColor.blackColor;
+}
+
+static UIView *TRBEnsureDotsCover(UICollectionView *cv) {
+    if (!cv || !cv.superview) return nil;
+
+    UIView *host = cv.superview;
+    UIView *cover = objc_getAssociatedObject(cv, &kTRBDotsCoverKey);
+
+    if (!cover || cover.superview != host) {
+        if (cover) [cover removeFromSuperview];
+
+        cover = [[UIView alloc] initWithFrame:CGRectZero];
+        cover.accessibilityIdentifier = @"TRBOriginalBannerDotsCover";
+        cover.userInteractionEnabled = NO;
+        cover.backgroundColor = TRBDotsBackgroundColor();
+        cover.layer.zPosition = 100000.0;
+
+        [host addSubview:cover];
+
+        objc_setAssociatedObject(
+            cv,
+            &kTRBDotsCoverKey,
+            cover,
+            OBJC_ASSOCIATION_RETAIN_NONATOMIC
+        );
+    }
+
+    cover.backgroundColor = TRBDotsBackgroundColor();
+
+    // The four SwiftUI indicators are drawn immediately below the
+    // detected 358x160 paging collection. They do not expose a
+    // selectable UIView in FLEX, so cover only their small strip.
+    CGRect c = cv.frame;
+    CGFloat y = CGRectGetMaxY(c) - 4.0;
+
+    cover.frame = CGRectMake(
+        0.0,
+        y,
+        host.bounds.size.width,
+        46.0
+    );
+
+    cover.hidden = NO;
+    cover.alpha = 1.0;
+
+    [host bringSubviewToFront:cover];
+    return cover;
+}
+
+static void TRBHidePagingCollectionAndDots_v14(UICollectionView *cv) {
+    if (!cv) return;
+
+    cv.hidden = YES;
+    cv.alpha = 0.0;
+    cv.userInteractionEnabled = NO;
+
+    UIView *parent = cv.superview;
+    if (parent && TRBIsOriginalBannerSize(parent.bounds)) {
+        parent.hidden = YES;
+        parent.alpha = 0.0;
+        parent.userInteractionEnabled = NO;
+    }
+
+    TRBEnsureDotsCover(cv);
+}
+
+static void TRBRefreshDotsCoverFromView_v14(UIView *view) {
+    if (!view) return;
+
+    if (TRBIsSwiftUIPagingCell(view) &&
+        TRBIsOriginalBannerSize(view.bounds)) {
+
+        UICollectionView *cv = TRBOwningCollectionView(view);
+        if (cv) {
+            TRBHidePagingCollectionAndDots_v14(cv);
+        }
+        return;
+    }
+
+    if ([view isKindOfClass:UICollectionView.class]) {
+        UICollectionView *cv = (UICollectionView *)view;
+
+        if (TRBCollectionContainsOriginalBannerPagingCell(cv)) {
+            TRBHidePagingCollectionAndDots_v14(cv);
+        }
+    }
+}
+
+__attribute__((constructor))
+static void TRBDotsCoverEntry_v14(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        // SwiftUI may redraw the indicators without creating a
+        // separately selectable UIKit view, so keep the exact strip
+        // covered while the target paging collection exists.
+        [NSTimer scheduledTimerWithTimeInterval:0.10
+                                         repeats:YES
+                                           block:^(__unused NSTimer *timer) {
+
+            for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+                if (![scene isKindOfClass:UIWindowScene.class]) continue;
+
+                for (UIWindow *window in ((UIWindowScene *)scene).windows) {
+                    if (window.hidden) continue;
+
+                    NSMutableArray<UIView *> *stack =
+                        [NSMutableArray arrayWithObject:window];
+
+                    while (stack.count) {
+                        UIView *v = stack.lastObject;
+                        [stack removeLastObject];
+
+                        TRBRefreshDotsCoverFromView_v14(v);
+
+                        for (UIView *sub in v.subviews) {
+                            [stack addObject:sub];
+                        }
+                    }
+                }
+            }
+        }];
+    });
+}

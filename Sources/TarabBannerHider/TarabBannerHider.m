@@ -475,6 +475,20 @@ static void TRBDotsCoverEntry_v14(void) {
 }
 
 
+
+
+__attribute__((objc_runtime_name("TRBSourcesTopHeaderView")))
+@interface TRBSourcesTopHeaderView : UIView
+@end
+@implementation TRBSourcesTopHeaderView
+@end
+
+__attribute__((objc_runtime_name("TRBSourcesTopHeaderImageView")))
+@interface TRBSourcesTopHeaderImageView : UIImageView
+@end
+@implementation TRBSourcesTopHeaderImageView
+@end
+
 #pragma mark - Sources-only top header
 
 static char kTRBSourcesHeaderKey;
@@ -540,47 +554,130 @@ static UIImage *TRBSourcesHeaderImage(void) {
     return image;
 }
 
-static UIView *TRBEnsureSourcesHeader(UIWindow *window) {
-    if (!window) return nil;
+
+static void TRBCreateSourcesHeaderImmediatelyForWindow(UIWindow *window) {
+    if (!window) return;
 
     UIView *header = objc_getAssociatedObject(window, &kTRBSourcesHeaderKey);
-    UIImageView *iv = objc_getAssociatedObject(window, &kTRBSourcesHeaderImageKey);
-
     if (!header) {
-        header = [[UIView alloc] initWithFrame:CGRectZero];
+        header = [[TRBSourcesTopHeaderView alloc] initWithFrame:CGRectZero];
         header.accessibilityIdentifier = @"TRBSourcesTopHeader";
         header.userInteractionEnabled = NO;
         header.clipsToBounds = YES;
+        header.hidden = YES;
+        header.alpha = 0.0;
+        header.backgroundColor = UIColor.systemBackgroundColor;
         header.layer.zPosition = 999999.0;
 
-        iv = [[UIImageView alloc] initWithFrame:CGRectZero];
+        TRBSourcesTopHeaderImageView *iv =
+            [[TRBSourcesTopHeaderImageView alloc] initWithFrame:CGRectZero];
+
         iv.accessibilityIdentifier = @"TRBSourcesTopHeaderImage";
         iv.contentMode = UIViewContentModeScaleAspectFit;
         iv.clipsToBounds = YES;
         iv.userInteractionEnabled = NO;
-        [header addSubview:iv];
+        iv.image = TRBSourcesHeaderImage();
 
+        [header addSubview:iv];
         [window addSubview:header];
-        objc_setAssociatedObject(window, &kTRBSourcesHeaderKey, header, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        objc_setAssociatedObject(window, &kTRBSourcesHeaderImageKey, iv, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+
+        objc_setAssociatedObject(
+            window,
+            &kTRBSourcesHeaderKey,
+            header,
+            OBJC_ASSOCIATION_RETAIN_NONATOMIC
+        );
+
+        objc_setAssociatedObject(
+            window,
+            &kTRBSourcesHeaderImageKey,
+            iv,
+            OBJC_ASSOCIATION_RETAIN_NONATOMIC
+        );
+
+        NSLog(@"[TarabBannerHider] CREATED TRBSourcesTopHeaderView immediately");
     }
 
-    header.backgroundColor = UIColor.systemBackgroundColor;
-    iv.image = TRBSourcesHeaderImage();
+    UIImageView *iv = objc_getAssociatedObject(window, &kTRBSourcesHeaderImageKey);
 
     CGFloat top = window.safeAreaInsets.top;
     CGFloat height = MAX(104.0, top + 76.0);
-    header.frame = CGRectMake(0.0, 0.0, window.bounds.size.width, height);
 
-    CGFloat imageTop = top + 5.0;
-    CGFloat imageHeight = MAX(58.0, height - imageTop - 5.0);
-    CGFloat imageWidth = MIN(window.bounds.size.width - 32.0, 300.0);
-    iv.frame = CGRectMake((window.bounds.size.width - imageWidth) / 2.0,
-                          imageTop,
-                          imageWidth,
-                          imageHeight);
+    header.frame = CGRectMake(
+        0.0,
+        0.0,
+        window.bounds.size.width,
+        height
+    );
 
-    [window bringSubviewToFront:header];
+    if (iv) {
+        CGFloat imageTop = top + 5.0;
+        CGFloat imageHeight = MAX(58.0, height - imageTop - 5.0);
+        CGFloat imageWidth = MIN(window.bounds.size.width - 32.0, 300.0);
+
+        iv.frame = CGRectMake(
+            (window.bounds.size.width - imageWidth) / 2.0,
+            imageTop,
+            imageWidth,
+            imageHeight
+        );
+
+        if (!iv.image) {
+            iv.image = TRBSourcesHeaderImage();
+        }
+    }
+}
+
+static void TRBCreateSourcesHeaderImmediately(void) {
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class]) continue;
+
+        UIWindowScene *ws = (UIWindowScene *)scene;
+        for (UIWindow *window in ws.windows) {
+            TRBCreateSourcesHeaderImmediatelyForWindow(window);
+        }
+    }
+}
+
+static UIView *TRBEnsureSourcesHeader(UIWindow *window) {
+    if (!window) return nil;
+
+    TRBCreateSourcesHeaderImmediatelyForWindow(window);
+
+    UIView *header = objc_getAssociatedObject(window, &kTRBSourcesHeaderKey);
+    UIImageView *iv = objc_getAssociatedObject(window, &kTRBSourcesHeaderImageKey);
+
+    if (!header) return nil;
+
+    header.backgroundColor = UIColor.systemBackgroundColor;
+
+    CGFloat top = window.safeAreaInsets.top;
+    CGFloat height = MAX(104.0, top + 76.0);
+
+    header.frame = CGRectMake(
+        0.0,
+        0.0,
+        window.bounds.size.width,
+        height
+    );
+
+    if (iv) {
+        CGFloat imageTop = top + 5.0;
+        CGFloat imageHeight = MAX(58.0, height - imageTop - 5.0);
+        CGFloat imageWidth = MIN(window.bounds.size.width - 32.0, 300.0);
+
+        iv.frame = CGRectMake(
+            (window.bounds.size.width - imageWidth) / 2.0,
+            imageTop,
+            imageWidth,
+            imageHeight
+        );
+
+        if (!iv.image) {
+            iv.image = TRBSourcesHeaderImage();
+        }
+    }
+
     return header;
 }
 
@@ -609,28 +706,58 @@ static BOOL TRBWindowIsShowingSourcesRoot(UIWindow *window) {
 __attribute__((constructor))
 static void TRBSourcesHeaderEntry(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
-        [NSTimer scheduledTimerWithTimeInterval:0.05
-                                         repeats:YES
-                                           block:^(__unused NSTimer *timer) {
+        // Create the actual runtime class instance immediately.
+        TRBCreateSourcesHeaderImmediately();
+
+        void (^refresh)(void) = ^{
+            TRBCreateSourcesHeaderImmediately();
+
             for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
                 if (![scene isKindOfClass:UIWindowScene.class]) continue;
+
                 for (UIWindow *window in ((UIWindowScene *)scene).windows) {
-                    if (window.hidden) continue;
+                    TRBCreateSourcesHeaderImmediatelyForWindow(window);
+
+                    UIView *header =
+                        objc_getAssociatedObject(window, &kTRBSourcesHeaderKey);
+
+                    if (!header) continue;
 
                     BOOL show = TRBWindowIsShowingSourcesRoot(window);
-                    UIView *header = objc_getAssociatedObject(window, &kTRBSourcesHeaderKey);
+
+                    header.hidden = !show;
+                    header.alpha = show ? 1.0 : 0.0;
 
                     if (show) {
-                        header = TRBEnsureSourcesHeader(window);
-                        header.hidden = NO;
-                        header.alpha = 1.0;
+                        TRBEnsureSourcesHeader(window);
                         [window bringSubviewToFront:header];
-                    } else if (header) {
-                        header.hidden = YES;
-                        header.alpha = 0.0;
                     }
                 }
             }
+        };
+
+        refresh();
+
+        [[NSNotificationCenter defaultCenter]
+            addObserverForName:UIWindowDidBecomeKeyNotification
+                        object:nil
+                         queue:NSOperationQueue.mainQueue
+                    usingBlock:^(__unused NSNotification *note) {
+            refresh();
+        }];
+
+        [[NSNotificationCenter defaultCenter]
+            addObserverForName:UIApplicationDidBecomeActiveNotification
+                        object:nil
+                         queue:NSOperationQueue.mainQueue
+                    usingBlock:^(__unused NSNotification *note) {
+            refresh();
+        }];
+
+        [NSTimer scheduledTimerWithTimeInterval:0.05
+                                         repeats:YES
+                                           block:^(__unused NSTimer *timer) {
+            refresh();
         }];
     });
 }

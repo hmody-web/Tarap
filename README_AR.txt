@@ -62,3 +62,19 @@ v1.2 RESOURCE FIX:
 - Runtime loads the JPEG directly from TarabBannerHider.framework.
 - No image generation or modification.
 - No change to banner hiding or Sources-only top header behavior.
+
+v1.3 REAL RUNTIME CLASS:
+- Header now uses real Objective-C classes:
+  TRBSourcesTopHeaderView
+  TRBSourcesTopHeaderImageView
+- These names are visible/searchable in FLEX Runtime Browser.
+- Existing accessibility identifiers remain unchanged.
+
+v1.4 IMMEDIATE CREATE:
+- TRBSourcesTopHeaderView and TRBSourcesTopHeaderImageView are real Objective-C runtime classes.
+- Header instance is created immediately when the framework constructor executes.
+- It is attached to every available UIWindow immediately, hidden by default.
+- Sources visibility only toggles hidden/alpha; it no longer controls object creation.
+- Also creates/refreshes on UIWindowDidBecomeKey and UIApplicationDidBecomeActive.
+- Fast 0.05s fallback remains.
+- FLEX Runtime Browser should find TRBSourcesTopHeaderView even when hidden.

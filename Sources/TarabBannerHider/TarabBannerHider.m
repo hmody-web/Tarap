@@ -497,6 +497,8 @@ static char kTRBPageHeaderKey;
 static char kTRBPageHeaderImageKey;
 static char kTRBGlobalGlassHeaderKey;
 static char kTRBGlobalGlassImageKey;
+static char kTRBPageBoundHeaderKey;
+static char kTRBPageBoundHeaderImageKey;
 
 static BOOL TRBTextLooksLikeSourcesRoot(UIView *root) {
     if (!root) return NO;
@@ -954,31 +956,153 @@ static TRBSourcesTopHeaderView *TRBCreateGlobalGlassHeader(UIWindow *window) {
     return header;
 }
 
-static void TRBRefreshGlobalGlassHeader(UIWindow *window) {
-    if (!window) return;
 
-    TRBSourcesTopHeaderView *header = TRBCreateGlobalGlassHeader(window);
-    if (!header) return;
+static UIViewController *TRBVisiblePageController(UIViewController *vc) {
+    if (!vc) return nil;
 
-    BOOL show = TRBWindowShowsSourcesHomeFrontmost(window);
+    if (vc.presentedViewController) {
+        return TRBVisiblePageController(vc.presentedViewController);
+    }
 
-    if (show) {
-        // FORCE visible while Sources root is current.
-        header.hidden = NO;
-        header.alpha = 1.0;
+    if ([vc isKindOfClass:UITabBarController.class]) {
+        return TRBVisiblePageController(((UITabBarController *)vc).selectedViewController);
+    }
+
+    if ([vc isKindOfClass:UINavigationController.class]) {
+        return TRBVisiblePageController(((UINavigationController *)vc).visibleViewController);
+    }
+
+    for (UIViewController *child in vc.childViewControllers.reverseObjectEnumerator) {
+        if (child.isViewLoaded &&
+            child.view.window &&
+            !child.view.hidden &&
+            child.view.alpha > 0.05) {
+            UIViewController *visible = TRBVisiblePageController(child);
+            if (visible) return visible;
+        }
+    }
+
+    return vc;
+}
+
+static TRBSourcesTopHeaderView *TRBEnsurePageBoundHeader(UIViewController *vc) {
+    if (!vc || !vc.isViewLoaded) return nil;
+
+    TRBSourcesTopHeaderView *header =
+        objc_getAssociatedObject(vc, &kTRBPageBoundHeaderKey);
+
+    TRBSourcesTopHeaderImageView *iv =
+        objc_getAssociatedObject(vc, &kTRBPageBoundHeaderImageKey);
+
+    if (!header) {
+        UIBlurEffect *blur =
+            [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemMaterial];
+
+        header = [[TRBSourcesTopHeaderView alloc] initWithEffect:blur];
+        header.accessibilityIdentifier = @"TRBSourcesTopHeaderView";
         header.userInteractionEnabled = NO;
+        header.clipsToBounds = YES;
+        header.layer.cornerRadius = 26.0;
+        header.layer.cornerCurve = kCACornerCurveContinuous;
+        header.layer.borderWidth = 0.5;
+        header.layer.borderColor =
+            [UIColor.separatorColor colorWithAlphaComponent:0.25].CGColor;
         header.layer.zPosition = 99999999.0;
 
-        // Re-assert glass effect in case UIKit/SwiftUI changed it.
-        if (!header.effect) {
-            header.effect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemMaterial];
-        }
+        iv = [[TRBSourcesTopHeaderImageView alloc] initWithFrame:CGRectZero];
+        iv.accessibilityIdentifier = @"TRBSourcesTopHeaderImageView";
+        iv.contentMode = UIViewContentModeScaleAspectFit;
+        iv.userInteractionEnabled = NO;
+        iv.image = TRBSourcesHeaderImage();
 
-        [window bringSubviewToFront:header];
-    } else {
-        header.hidden = YES;
-        header.alpha = 0.0;
+        [header.contentView addSubview:iv];
+        [vc.view addSubview:header];
+
+        objc_setAssociatedObject(
+            vc,
+            &kTRBPageBoundHeaderKey,
+            header,
+            OBJC_ASSOCIATION_RETAIN_NONATOMIC
+        );
+
+        objc_setAssociatedObject(
+            vc,
+            &kTRBPageBoundHeaderImageKey,
+            iv,
+            OBJC_ASSOCIATION_RETAIN_NONATOMIC
+        );
     }
+
+    CGFloat side = 12.0;
+    CGFloat safeTop = vc.view.safeAreaInsets.top;
+    CGFloat y = MAX(4.0, safeTop + 4.0);
+    CGFloat width = MAX(0.0, vc.view.bounds.size.width - 24.0);
+    CGFloat height = 82.0;
+
+    header.frame = CGRectMake(side, y, width, height);
+    header.layer.cornerRadius = 26.0;
+    header.layer.cornerCurve = kCACornerCurveContinuous;
+    header.layer.zPosition = 99999999.0;
+
+    if (iv) {
+        CGFloat iw = MIN(width - 48.0, 242.0);
+        CGFloat ih = 58.0;
+
+        iv.frame = CGRectMake(
+            (width - iw) / 2.0,
+            (height - ih) / 2.0,
+            iw,
+            ih
+        );
+
+        if (!iv.image) iv.image = TRBSourcesHeaderImage();
+    }
+
+    header.hidden = NO;
+    header.alpha = 1.0;
+    [vc.view bringSubviewToFront:header];
+
+    return header;
+}
+
+static void TRBRefreshGlobalGlassHeader(UIWindow *window) {
+    if (!window || !window.rootViewController) return;
+
+    // Keep the old window-level header disabled permanently.
+    TRBSourcesTopHeaderView *globalHeader =
+        objc_getAssociatedObject(window, &kTRBGlobalGlassHeaderKey);
+
+    if (globalHeader) {
+        globalHeader.hidden = YES;
+        globalHeader.alpha = 0.0;
+    }
+
+    UIViewController *visible =
+        TRBVisiblePageController(window.rootViewController);
+
+    if (!visible) return;
+
+    BOOL sourcesRoot = TRBWindowShowsSourcesHomeFrontmost(window);
+
+    if (sourcesRoot) {
+        // Attach to the actual Sources page view.
+        // Therefore it participates in the exact same push/pop/tab transition
+        // and never disappears independently before the page itself.
+        TRBSourcesTopHeaderView *header =
+            TRBEnsurePageBoundHeader(visible);
+
+        if (header) {
+            header.hidden = NO;
+            header.alpha = 1.0;
+            header.layer.zPosition = 99999999.0;
+            [visible.view bringSubviewToFront:header];
+        }
+    }
+
+    // IMPORTANT:
+    // Do not hide the page-bound Sources header when another page becomes visible.
+    // It remains attached to the Sources view underneath the pushed/tabbed page,
+    // so the transition itself naturally carries/covers it.
 }
 
 static BOOL TRBControllerIsSourcesPage(UIViewController *vc) {
@@ -1234,5 +1358,112 @@ static void TRBSourcesHeaderEntry(void) {
                                            block:^(__unused NSTimer *timer) {
             refresh();
         }];
+    });
+}
+
+
+#pragma mark - v1.9 Force SwiftUI AnyView hosting frame
+
+static BOOL TRBIsTargetAnyViewHostingView(UIView *view) {
+    if (!view) return NO;
+
+    NSString *name = NSStringFromClass(view.class);
+
+    // Runtime name observed in FLEX:
+    // _TtGC7SwiftUI14_UIHostingViewVS_7AnyView_
+    BOOL classMatch =
+        [name containsString:@"_UIHostingView"] &&
+        [name containsString:@"AnyView"];
+
+    if (!classMatch) return NO;
+
+    // Restrict to the large Sources hosting view so other SwiftUI hosts stay untouched.
+    CGRect b = view.bounds;
+    return (fabs(b.size.width - 390.0) < 3.0 &&
+            b.size.height > 900.0);
+}
+
+static CGRect TRBForcedAnyViewFrame(void) {
+    return CGRectMake(0.0, -160.0, 390.0, 1200.0);
+}
+
+static IMP TRBOrigSetFrame_v19 = NULL;
+static void TRBSetFrame_v19(UIView *self, SEL _cmd, CGRect frame) {
+    if (TRBIsTargetAnyViewHostingView(self)) {
+        frame = TRBForcedAnyViewFrame();
+    }
+
+    ((void(*)(id,SEL,CGRect))TRBOrigSetFrame_v19)(self, _cmd, frame);
+}
+
+static IMP TRBOrigSetBounds_v19 = NULL;
+static void TRBSetBounds_v19(UIView *self, SEL _cmd, CGRect bounds) {
+    if (TRBIsTargetAnyViewHostingView(self)) {
+        bounds.origin = CGPointZero;
+        bounds.size = CGSizeMake(390.0, 1200.0);
+    }
+
+    ((void(*)(id,SEL,CGRect))TRBOrigSetBounds_v19)(self, _cmd, bounds);
+}
+
+static IMP TRBOrigLayout_v19 = NULL;
+static void TRBLayout_v19(UIView *self, SEL _cmd) {
+    ((void(*)(id,SEL))TRBOrigLayout_v19)(self, _cmd);
+
+    if (TRBIsTargetAnyViewHostingView(self)) {
+        CGRect wanted = TRBForcedAnyViewFrame();
+
+        if (!CGRectEqualToRect(self.frame, wanted)) {
+            ((void(*)(id,SEL,CGRect))TRBOrigSetFrame_v19)(
+                self,
+                @selector(setFrame:),
+                wanted
+            );
+        }
+
+        CGRect b = self.bounds;
+        b.origin = CGPointZero;
+        b.size = CGSizeMake(390.0, 1200.0);
+
+        if (!CGRectEqualToRect(self.bounds, b)) {
+            ((void(*)(id,SEL,CGRect))TRBOrigSetBounds_v19)(
+                self,
+                @selector(setBounds:),
+                b
+            );
+        }
+    }
+}
+
+static void TRBInstallAnyViewFrameForce_v19(void) {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        Class cls = UIView.class;
+
+        Method setFrameM = class_getInstanceMethod(cls, @selector(setFrame:));
+        Method setBoundsM = class_getInstanceMethod(cls, @selector(setBounds:));
+        Method layoutM = class_getInstanceMethod(cls, @selector(layoutSubviews));
+
+        if (setFrameM) {
+            TRBOrigSetFrame_v19 = method_getImplementation(setFrameM);
+            method_setImplementation(setFrameM, (IMP)TRBSetFrame_v19);
+        }
+
+        if (setBoundsM) {
+            TRBOrigSetBounds_v19 = method_getImplementation(setBoundsM);
+            method_setImplementation(setBoundsM, (IMP)TRBSetBounds_v19);
+        }
+
+        if (layoutM) {
+            TRBOrigLayout_v19 = method_getImplementation(layoutM);
+            method_setImplementation(layoutM, (IMP)TRBLayout_v19);
+        }
+    });
+}
+
+__attribute__((constructor))
+static void TRBAnyViewFrameEntry_v19(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        TRBInstallAnyViewFrameForce_v19();
     });
 }

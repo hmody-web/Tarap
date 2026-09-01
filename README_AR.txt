@@ -115,3 +115,13 @@ v1.8 FORCE SOURCES TAB:
 - On pushed child pages (YouTube/Google/Instagram/TikTok/etc.): hidden=YES.
 - On other tabs: hidden=YES.
 - Refresh interval reduced to 0.01s for instant return.
+
+v1.9 PAGE-BOUND + FRAME:
+- Forces SwiftUI _UIHostingView<AnyView> to frame:
+  x=0, y=-160, width=390, height=1200.
+- Reasserts frame/bounds through setFrame, setBounds and layoutSubviews.
+- Header is now attached to the actual Sources page controller view, not the UIWindow.
+- It does not independently hide before navigation/tab transitions.
+- When leaving Sources, the page itself moves/hides and naturally carries the header with it.
+- Returning to Sources reveals the same mounted header with the page.
+- Existing glass/PNG/banner-hiding modifications are preserved.

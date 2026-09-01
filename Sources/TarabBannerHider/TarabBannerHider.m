@@ -1,0 +1,204 @@
+
+#import <UIKit/UIKit.h>
+#import <objc/runtime.h>
+
+static BOOL TRBHNear(CGFloat a, CGFloat b) {
+    return fabs(a - b) <= 1.5;
+}
+
+static BOOL TRBHTextContains(UIView *root, NSString *needle) {
+    if (!root || needle.length == 0) return NO;
+
+    NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:root];
+    while (stack.count) {
+        UIView *v = stack.lastObject;
+        [stack removeLastObject];
+
+        NSString *text = nil;
+        if ([v isKindOfClass:UILabel.class]) {
+            text = ((UILabel *)v).text;
+        } else if ([v isKindOfClass:UIButton.class]) {
+            text = [((UIButton *)v) titleForState:UIControlStateNormal];
+        }
+
+        if (text.length && [text rangeOfString:needle options:NSCaseInsensitiveSearch].location != NSNotFound) {
+            return YES;
+        }
+
+        for (UIView *sub in v.subviews) [stack addObject:sub];
+    }
+    return NO;
+}
+
+static BOOL TRBHHasPageControlNearby(UIView *view) {
+    UIView *p = view.superview;
+    if (!p) return NO;
+
+    for (UIView *s in p.subviews) {
+        if ([s isKindOfClass:UIPageControl.class]) return YES;
+
+        NSString *cn = NSStringFromClass(s.class);
+        if ([cn containsString:@"PageControl"] || [cn containsString:@"PageIndicator"]) return YES;
+    }
+    return NO;
+}
+
+static BOOL TRBHLooksLikeOriginalBanner(UIView *view) {
+    if (!view || view.window == nil) return NO;
+
+    CGRect f = view.frame;
+    CGRect b = view.bounds;
+
+    BOOL exactSize =
+        (TRBHNear(f.size.width, 358.0) && TRBHNear(f.size.height, 160.0)) ||
+        (TRBHNear(b.size.width, 358.0) && TRBHNear(b.size.height, 160.0));
+
+    if (!exactSize) return NO;
+
+    // Strong markers from the original Tarab advertising banner.
+    BOOL hasDownload = TRBHTextContains(view, @"تنزيل");
+    BOOL hasPageControl = TRBHHasPageControlNearby(view);
+
+    // Avoid touching unrelated 358x160 views: require banner-specific content.
+    return hasDownload || hasPageControl;
+}
+
+static UIView *TRBHFindBannerAncestor(UIView *view) {
+    UIView *v = view;
+    for (NSInteger i = 0; v && i < 8; i++, v = v.superview) {
+        if (TRBHLooksLikeOriginalBanner(v)) return v;
+    }
+    return nil;
+}
+
+static void TRBHForceHideView(UIView *view) {
+    if (!view) return;
+    view.hidden = YES;
+    view.alpha = 0.0;
+    view.userInteractionEnabled = NO;
+    view.accessibilityElementsHidden = YES;
+}
+
+static void TRBHHideBannerAndAttachments(UIView *banner) {
+    if (!banner) return;
+
+    TRBHForceHideView(banner);
+
+    UIView *parent = banner.superview;
+    if (!parent) return;
+
+    // Hide page dots / indicator directly associated with this banner.
+    for (UIView *s in parent.subviews) {
+        if (s == banner) continue;
+
+        NSString *cn = NSStringFromClass(s.class);
+        BOOL pageThing =
+            [s isKindOfClass:UIPageControl.class] ||
+            [cn containsString:@"PageControl"] ||
+            [cn containsString:@"PageIndicator"];
+
+        if (pageThing) {
+            CGRect bf = [banner convertRect:banner.bounds toView:parent];
+            CGRect sf = s.frame;
+            CGFloat distance = CGRectGetMinY(sf) - CGRectGetMaxY(bf);
+            if (distance > -20.0 && distance < 90.0) {
+                TRBHForceHideView(s);
+            }
+        }
+    }
+}
+
+static void TRBHScan(UIView *root) {
+    if (!root) return;
+
+    NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:root];
+    while (stack.count) {
+        UIView *v = stack.lastObject;
+        [stack removeLastObject];
+
+        if (TRBHLooksLikeOriginalBanner(v)) {
+            TRBHHideBannerAndAttachments(v);
+            continue;
+        }
+
+        for (UIView *sub in v.subviews) [stack addObject:sub];
+    }
+}
+
+static void (*orig_setHidden)(UIView *, SEL, BOOL);
+static void hook_setHidden(UIView *self, SEL _cmd, BOOL hidden) {
+    UIView *banner = TRBHFindBannerAncestor(self);
+    if (banner) {
+        orig_setHidden(self, _cmd, YES);
+        if (self == banner) {
+            self.alpha = 0.0;
+            self.userInteractionEnabled = NO;
+        }
+        return;
+    }
+    orig_setHidden(self, _cmd, hidden);
+}
+
+static void (*orig_setAlpha)(UIView *, SEL, CGFloat);
+static void hook_setAlpha(UIView *self, SEL _cmd, CGFloat alpha) {
+    UIView *banner = TRBHFindBannerAncestor(self);
+    if (banner) {
+        orig_setAlpha(self, _cmd, 0.0);
+        return;
+    }
+    orig_setAlpha(self, _cmd, alpha);
+}
+
+static void (*orig_didMoveToWindow)(UIView *, SEL);
+static void hook_didMoveToWindow(UIView *self, SEL _cmd) {
+    orig_didMoveToWindow(self, _cmd);
+
+    if (TRBHLooksLikeOriginalBanner(self)) {
+        TRBHHideBannerAndAttachments(self);
+    }
+}
+
+static void (*orig_layoutSubviews)(UIView *, SEL);
+static void hook_layoutSubviews(UIView *self, SEL _cmd) {
+    orig_layoutSubviews(self, _cmd);
+
+    if (TRBHLooksLikeOriginalBanner(self)) {
+        TRBHHideBannerAndAttachments(self);
+    }
+}
+
+static void TRBHSwizzle(Class cls, SEL sel, IMP replacement, IMP *original) {
+    Method m = class_getInstanceMethod(cls, sel);
+    if (!m) return;
+    *original = method_getImplementation(m);
+    method_setImplementation(m, replacement);
+}
+
+static void TRBHScanAllWindows(void) {
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class]) continue;
+        for (UIWindow *window in ((UIWindowScene *)scene).windows) {
+            if (!window.hidden) TRBHScan(window);
+        }
+    }
+}
+
+__attribute__((constructor))
+static void TRBHInit(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        TRBHSwizzle(UIView.class, @selector(setHidden:), (IMP)hook_setHidden, (IMP *)&orig_setHidden);
+        TRBHSwizzle(UIView.class, @selector(setAlpha:), (IMP)hook_setAlpha, (IMP *)&orig_setAlpha);
+        TRBHSwizzle(UIView.class, @selector(didMoveToWindow), (IMP)hook_didMoveToWindow, (IMP *)&orig_didMoveToWindow);
+        TRBHSwizzle(UIView.class, @selector(layoutSubviews), (IMP)hook_layoutSubviews, (IMP *)&orig_layoutSubviews);
+
+        // Immediate scan + permanent watchdog. If the app recreates/re-shows it,
+        // the banner is forced hidden again.
+        TRBHScanAllWindows();
+
+        [NSTimer scheduledTimerWithTimeInterval:0.15
+                                         repeats:YES
+                                           block:^(__unused NSTimer *timer) {
+            TRBHScanAllWindows();
+        }];
+    });
+}

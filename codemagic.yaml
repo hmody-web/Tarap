@@ -1,17 +1,13 @@
 workflows:
-  tarab-remote-banner:
-    name: Tarab Remote API Banner
-    instance_type: mac_mini_m2
-    max_build_duration: 60
-
+  ios-unsigned:
+    name: Build forced original banner hider
+    max_build_duration: 30
     environment:
       xcode: latest
-
     scripts:
-      - name: Build and inject remote banner
+      - name: Build and inject forced banner hider
         script: |
-          chmod +x build_and_inject.sh inject_dylib.py
+          chmod +x build_and_inject.sh
           ./build_and_inject.sh
-
     artifacts:
-      - Tarab_RemoteBanner_Injected.ipa
+      - Tarab_HideOriginalBanner_FORCE.ipa

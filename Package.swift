@@ -1,25 +1,18 @@
-// swift-tools-version: 5.9
+// swift-tools-version:5.9
 import PackageDescription
 
 let package = Package(
-    name: "TarabRemoteBanner",
+    name: "TarabBannerHider",
     platforms: [.iOS(.v15)],
     products: [
-        .library(
-            name: "TarabRemoteBanner",
-            type: .dynamic,
-            targets: ["TarabRemoteBanner"]
-        )
+        .library(name: "TarabBannerHider", type: .dynamic, targets: ["TarabBannerHider"])
     ],
     targets: [
         .target(
-            name: "TarabRemoteBanner",
-            path: "Sources/TarabRemoteBanner",
+            name: "TarabBannerHider",
+            path: "Sources/TarabBannerHider",
             publicHeadersPath: "include",
-            linkerSettings: [
-                .linkedFramework("UIKit"),
-                .linkedFramework("Foundation")
-            ]
+            cSettings: [.unsafeFlags(["-fobjc-arc"])]
         )
     ]
 )

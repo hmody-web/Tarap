@@ -1,3 +1,4 @@
+#import <math.h>
 
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
@@ -200,5 +201,142 @@ static void TRBHInit(void) {
                                            block:^(__unused NSTimer *timer) {
             TRBHScanAllWindows();
         }];
+    });
+}
+
+
+#pragma mark - v1.3 SwiftUI original banner paging hider
+
+static BOOL TRBIsOriginalBannerSize(CGRect r) {
+    return fabs(r.size.width - 358.0) < 1.0 && fabs(r.size.height - 160.0) < 1.0;
+}
+
+static BOOL TRBIsSwiftUIPagingCell(UIView *view) {
+    if (![view isKindOfClass:[UICollectionViewCell class]]) return NO;
+    NSString *name = NSStringFromClass(view.class);
+    return ([name containsString:@"UIKitPagingCell"] &&
+            ([name containsString:@"SwiftUI"] || [name hasPrefix:@"_TtC7SwiftUI"]));
+}
+
+static UICollectionView *TRBOwningCollectionView(UIView *view) {
+    UIView *p = view.superview;
+    while (p) {
+        if ([p isKindOfClass:[UICollectionView class]]) {
+            return (UICollectionView *)p;
+        }
+        p = p.superview;
+    }
+    return nil;
+}
+
+static BOOL TRBCollectionContainsOriginalBannerPagingCell(UICollectionView *cv) {
+    if (!cv) return NO;
+
+    for (UIView *v in cv.subviews) {
+        if (TRBIsSwiftUIPagingCell(v) && TRBIsOriginalBannerSize(v.bounds)) {
+            return YES;
+        }
+    }
+
+    for (UICollectionViewCell *cell in cv.visibleCells) {
+        if (TRBIsSwiftUIPagingCell(cell) && TRBIsOriginalBannerSize(cell.bounds)) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+static void TRBForceHideOriginalBannerFromView(UIView *view) {
+    if (!view) return;
+
+    if (TRBIsSwiftUIPagingCell(view) && TRBIsOriginalBannerSize(view.bounds)) {
+        UICollectionView *cv = TRBOwningCollectionView(view);
+        if (cv) {
+            cv.hidden = YES;
+            cv.alpha = 0.0;
+            cv.userInteractionEnabled = NO;
+
+            UIView *p = cv.superview;
+            if (p && TRBIsOriginalBannerSize(p.bounds)) {
+                p.hidden = YES;
+                p.alpha = 0.0;
+                p.userInteractionEnabled = NO;
+            }
+        }
+
+        view.hidden = YES;
+        view.alpha = 0.0;
+        view.userInteractionEnabled = NO;
+        return;
+    }
+
+    if ([view isKindOfClass:[UICollectionView class]]) {
+        UICollectionView *cv = (UICollectionView *)view;
+        if (TRBCollectionContainsOriginalBannerPagingCell(cv)) {
+            cv.hidden = YES;
+            cv.alpha = 0.0;
+            cv.userInteractionEnabled = NO;
+
+            UIView *p = cv.superview;
+            if (p && TRBIsOriginalBannerSize(p.bounds)) {
+                p.hidden = YES;
+                p.alpha = 0.0;
+                p.userInteractionEnabled = NO;
+            }
+            return;
+        }
+    }
+}
+
+static IMP TRBOrigUIViewDidMoveToWindow_v13 = NULL;
+static void TRBUIViewDidMoveToWindow_v13(UIView *self, SEL _cmd) {
+    ((void(*)(id,SEL))TRBOrigUIViewDidMoveToWindow_v13)(self, _cmd);
+    TRBForceHideOriginalBannerFromView(self);
+}
+
+static IMP TRBOrigUIViewLayoutSubviews_v13 = NULL;
+static void TRBUIViewLayoutSubviews_v13(UIView *self, SEL _cmd) {
+    ((void(*)(id,SEL))TRBOrigUIViewLayoutSubviews_v13)(self, _cmd);
+    TRBForceHideOriginalBannerFromView(self);
+}
+
+static void TRBInstallPagingBannerHider_v13(void) {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        Class cls = UIView.class;
+
+        Method m1 = class_getInstanceMethod(cls, @selector(didMoveToWindow));
+        TRBOrigUIViewDidMoveToWindow_v13 = method_getImplementation(m1);
+        method_setImplementation(m1, (IMP)TRBUIViewDidMoveToWindow_v13);
+
+        Method m2 = class_getInstanceMethod(cls, @selector(layoutSubviews));
+        TRBOrigUIViewLayoutSubviews_v13 = method_getImplementation(m2);
+        method_setImplementation(m2, (IMP)TRBUIViewLayoutSubviews_v13);
+    });
+}
+
+__attribute__((constructor))
+static void TRBPagingBannerHiderEntry_v13(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        TRBInstallPagingBannerHider_v13();
+
+        UIWindow *window = nil;
+        for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+            if (![scene isKindOfClass:UIWindowScene.class]) continue;
+            for (UIWindow *w in ((UIWindowScene *)scene).windows) {
+                if (w.isKeyWindow) { window = w; break; }
+            }
+            if (window) break;
+        }
+
+        if (window) {
+            NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:window];
+            while (stack.count) {
+                UIView *v = stack.lastObject;
+                [stack removeLastObject];
+                TRBForceHideOriginalBannerFromView(v);
+                [stack addObjectsFromArray:v.subviews];
+            }
+        }
     });
 }

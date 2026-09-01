@@ -473,3 +473,151 @@ static void TRBDotsCoverEntry_v14(void) {
         }];
     });
 }
+
+
+#pragma mark - Sources-only top header
+
+static char kTRBSourcesHeaderKey;
+static char kTRBSourcesHeaderImageKey;
+
+static BOOL TRBTextLooksLikeSourcesRoot(UIView *root) {
+    if (!root) return NO;
+    __block BOOL foundGoogle = NO;
+    __block BOOL foundInstagram = NO;
+    __block BOOL foundTikTok = NO;
+
+    NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:root];
+    while (stack.count) {
+        UIView *v = stack.lastObject;
+        [stack removeLastObject];
+
+        NSString *text = nil;
+        if ([v isKindOfClass:UILabel.class]) {
+            text = ((UILabel *)v).text;
+        } else if ([v isKindOfClass:UIButton.class]) {
+            text = [((UIButton *)v) titleForState:UIControlStateNormal];
+        }
+
+        if (text.length) {
+            if ([text containsString:@"جوجل"] || [text localizedCaseInsensitiveContainsString:@"Google"]) foundGoogle = YES;
+            if ([text containsString:@"انستجرام"] || [text containsString:@"انستغرام"] || [text localizedCaseInsensitiveContainsString:@"Instagram"]) foundInstagram = YES;
+            if ([text containsString:@"تيك توك"] || [text localizedCaseInsensitiveContainsString:@"TikTok"]) foundTikTok = YES;
+        }
+
+        for (UIView *sub in v.subviews) [stack addObject:sub];
+    }
+    return foundGoogle && foundInstagram && foundTikTok;
+}
+
+static UIImage *TRBSourcesHeaderImage(void) {
+    static UIImage *image = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        NSBundle *bundle = [NSBundle bundleForClass:NSClassFromString(@"TarabBannerHider") ?: NSObject.class];
+        NSString *path = [bundle pathForResource:@"TarabSourcesHeader" ofType:@"jpeg"];
+        if (!path) {
+            // SwiftPM framework resource fallback.
+            for (NSBundle *b in NSBundle.allFrameworks) {
+                NSString *p = [b pathForResource:@"TarabSourcesHeader" ofType:@"jpeg"];
+                if (p) { path = p; break; }
+            }
+        }
+        if (path) image = [UIImage imageWithContentsOfFile:path];
+    });
+    return image;
+}
+
+static UIView *TRBEnsureSourcesHeader(UIWindow *window) {
+    if (!window) return nil;
+
+    UIView *header = objc_getAssociatedObject(window, &kTRBSourcesHeaderKey);
+    UIImageView *iv = objc_getAssociatedObject(window, &kTRBSourcesHeaderImageKey);
+
+    if (!header) {
+        header = [[UIView alloc] initWithFrame:CGRectZero];
+        header.accessibilityIdentifier = @"TRBSourcesTopHeader";
+        header.userInteractionEnabled = NO;
+        header.clipsToBounds = YES;
+        header.layer.zPosition = 999999.0;
+
+        iv = [[UIImageView alloc] initWithFrame:CGRectZero];
+        iv.accessibilityIdentifier = @"TRBSourcesTopHeaderImage";
+        iv.contentMode = UIViewContentModeScaleAspectFit;
+        iv.clipsToBounds = YES;
+        iv.userInteractionEnabled = NO;
+        [header addSubview:iv];
+
+        [window addSubview:header];
+        objc_setAssociatedObject(window, &kTRBSourcesHeaderKey, header, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(window, &kTRBSourcesHeaderImageKey, iv, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+
+    header.backgroundColor = UIColor.systemBackgroundColor;
+    iv.image = TRBSourcesHeaderImage();
+
+    CGFloat top = window.safeAreaInsets.top;
+    CGFloat height = MAX(104.0, top + 76.0);
+    header.frame = CGRectMake(0.0, 0.0, window.bounds.size.width, height);
+
+    CGFloat imageTop = top + 5.0;
+    CGFloat imageHeight = MAX(58.0, height - imageTop - 5.0);
+    CGFloat imageWidth = MIN(window.bounds.size.width - 32.0, 300.0);
+    iv.frame = CGRectMake((window.bounds.size.width - imageWidth) / 2.0,
+                          imageTop,
+                          imageWidth,
+                          imageHeight);
+
+    [window bringSubviewToFront:header];
+    return header;
+}
+
+static BOOL TRBWindowIsShowingSourcesRoot(UIWindow *window) {
+    if (!window || window.hidden || window.alpha <= 0.01) return NO;
+
+    UIViewController *root = window.rootViewController;
+    if (!root) return NO;
+
+    // Require the actual Sources-root content to be visible. If a source detail
+    // page is pushed/presented, its visible hierarchy will no longer match.
+    UIViewController *vc = root;
+    while (vc.presentedViewController) vc = vc.presentedViewController;
+    if ([vc isKindOfClass:UITabBarController.class]) {
+        UIViewController *sel = ((UITabBarController *)vc).selectedViewController;
+        if (sel) vc = sel;
+    }
+    if ([vc isKindOfClass:UINavigationController.class]) {
+        UIViewController *vis = ((UINavigationController *)vc).visibleViewController;
+        if (vis) vc = vis;
+    }
+
+    return vc.view.window && TRBTextLooksLikeSourcesRoot(vc.view);
+}
+
+__attribute__((constructor))
+static void TRBSourcesHeaderEntry(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [NSTimer scheduledTimerWithTimeInterval:0.05
+                                         repeats:YES
+                                           block:^(__unused NSTimer *timer) {
+            for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+                if (![scene isKindOfClass:UIWindowScene.class]) continue;
+                for (UIWindow *window in ((UIWindowScene *)scene).windows) {
+                    if (window.hidden) continue;
+
+                    BOOL show = TRBWindowIsShowingSourcesRoot(window);
+                    UIView *header = objc_getAssociatedObject(window, &kTRBSourcesHeaderKey);
+
+                    if (show) {
+                        header = TRBEnsureSourcesHeader(window);
+                        header.hidden = NO;
+                        header.alpha = 1.0;
+                        [window bringSubviewToFront:header];
+                    } else if (header) {
+                        header.hidden = YES;
+                        header.alpha = 0.0;
+                    }
+                }
+            }
+        }];
+    });
+}

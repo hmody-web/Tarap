@@ -39,3 +39,10 @@ v1.4 DOTS:
   the detected original banner paging collection.
 - Reapplies every 0.10s so SwiftUI cannot redraw the dots.
 - Does not globally hide UIPageControl or other indicators in the app.
+
+Sources Top Header v1:
+- Uses the user's exact supplied JPEG; no image was generated or altered.
+- Full-width systemBackgroundColor rectangle at the very top.
+- Centered image with Aspect Fit.
+- Visible only on the root Sources page and hidden on source detail pages/other tabs.
+- Re-evaluated every 0.05s for immediate return when Sources becomes visible.

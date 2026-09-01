@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "TarabBannerHider",
-    platforms: [.iOS(.v15)],
+    platforms: [.iOS(.v15, resources: [.process("Resources")])],
     products: [
         .library(name: "TarabBannerHider", type: .dynamic, targets: ["TarabBannerHider"])
     ],

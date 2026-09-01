@@ -13,3 +13,13 @@ v1.1 BUILD FIX:
 - Added explicit xcodebuild destination:
   -destination 'generic/platform=iOS'
 - No changes to the forced banner hiding logic.
+
+v1.2 FIXED:
+- Build output is a framework, not a dylib.
+- Correctly locates TarabBannerHider.framework.
+- Unzips the IPA.
+- Copies the framework into App/Frameworks.
+- Injects @rpath/TarabBannerHider.framework/TarabBannerHider into the app executable.
+- Verifies injection with otool.
+- Repackages the IPA.
+- No changes to the forced hiding logic.

@@ -87,3 +87,13 @@ v1.5 FORCE VISIBLE:
 - Legacy window-level header is disabled.
 - Other pages do not receive the header.
 - Refresh fallback is 0.03 seconds.
+
+v1.6 GLASS ROOT ONLY:
+- Uses the user's exact transparent PNG, no generated/edited image.
+- Replaces flat/systemBackgroundColor header with UIKit system-material blur glass.
+- 12pt horizontal safe margins, continuous rounded corners.
+- Image reduced and centered with Aspect Fit.
+- Header qualifies ONLY on the current Sources HOME controller.
+- Child pages (YouTube/Google/Instagram/TikTok/etc.) cannot inherit Sources status
+  from parent/tab controllers.
+- Requires at least 3 visible Sources-home markers on the current VC.

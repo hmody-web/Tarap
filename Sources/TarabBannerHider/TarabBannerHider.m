@@ -537,9 +537,9 @@ static UIImage *TRBSourcesHeaderImage(void) {
         for (NSBundle *bundle in NSBundle.allFrameworks) {
             NSString *bundlePath = bundle.bundlePath ?: @"";
             if ([bundlePath containsString:@"TarabBannerHider.framework"]) {
-                path = [bundle pathForResource:@"TarabSourcesHeader" ofType:@"jpeg"];
+                path = [bundle pathForResource:@"TarabSourcesHeader" ofType:@"png"];
                 if (!path) {
-                    path = [bundle.bundlePath stringByAppendingPathComponent:@"TarabSourcesHeader.jpeg"];
+                    path = [bundle.bundlePath stringByAppendingPathComponent:@"TarabSourcesHeader.png"];
                 }
                 if ([[NSFileManager defaultManager] fileExistsAtPath:path]) {
                     break;
@@ -752,31 +752,70 @@ static BOOL TRBViewContainsSourcesMarkers(UIView *root) {
 static BOOL TRBControllerIsSourcesPage(UIViewController *vc) {
     if (!vc || !vc.isViewLoaded || !vc.view.window) return NO;
 
-    NSString *title = vc.title ?: @"";
-    UITabBarItem *item = vc.tabBarItem;
-    NSString *tabTitle = item.title ?: @"";
+    // IMPORTANT:
+    // Do not inherit "Sources" from a parent/tab controller.
+    // Child pages like YouTube/Google/Instagram must fail this test.
+    if (vc.presentedViewController) return NO;
 
-    if ([title containsString:@"المصادر"] ||
-        [tabTitle containsString:@"المصادر"] ||
-        [title localizedCaseInsensitiveContainsString:@"Sources"] ||
-        [tabTitle localizedCaseInsensitiveContainsString:@"Sources"]) {
-        return YES;
+    if (vc.navigationController &&
+        vc.navigationController.visibleViewController != vc) {
+        return NO;
     }
 
-    UIViewController *parent = vc.parentViewController;
-    while (parent) {
-        NSString *pt = parent.title ?: @"";
-        NSString *pTab = parent.tabBarItem.title ?: @"";
-        if ([pt containsString:@"المصادر"] ||
-            [pTab containsString:@"المصادر"] ||
-            [pt localizedCaseInsensitiveContainsString:@"Sources"] ||
-            [pTab localizedCaseInsensitiveContainsString:@"Sources"]) {
-            return YES;
+    // The Sources HOME page visibly contains several source choices together.
+    // Child pages do not contain this group.
+    BOOL youtube = NO;
+    BOOL google = NO;
+    BOOL instagram = NO;
+    BOOL tiktok = NO;
+    BOOL trends = NO;
+
+    NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:vc.view];
+
+    while (stack.count) {
+        UIView *v = stack.lastObject;
+        [stack removeLastObject];
+
+        if (v.hidden || v.alpha < 0.05) continue;
+
+        NSString *text = nil;
+        if ([v isKindOfClass:UILabel.class]) {
+            text = ((UILabel *)v).text;
+        } else if ([v isKindOfClass:UIButton.class]) {
+            text = [((UIButton *)v) titleForState:UIControlStateNormal];
         }
-        parent = parent.parentViewController;
+
+        if (text.length) {
+            if ([text containsString:@"يوتيوب"] ||
+                [text localizedCaseInsensitiveContainsString:@"YouTube"]) youtube = YES;
+
+            if ([text containsString:@"جوجل"] ||
+                [text localizedCaseInsensitiveContainsString:@"Google"]) google = YES;
+
+            if ([text containsString:@"انستجرام"] ||
+                [text containsString:@"انستغرام"] ||
+                [text localizedCaseInsensitiveContainsString:@"Instagram"]) instagram = YES;
+
+            if ([text containsString:@"تيك توك"] ||
+                [text localizedCaseInsensitiveContainsString:@"TikTok"]) tiktok = YES;
+
+            if ([text containsString:@"ترندات"] ||
+                [text localizedCaseInsensitiveContainsString:@"Trending"]) trends = YES;
+        }
+
+        for (UIView *sub in v.subviews) {
+            [stack addObject:sub];
+        }
     }
 
-    return TRBViewContainsSourcesMarkers(vc.view);
+    NSInteger markers =
+        (youtube ? 1 : 0) +
+        (google ? 1 : 0) +
+        (instagram ? 1 : 0) +
+        (tiktok ? 1 : 0) +
+        (trends ? 1 : 0);
+
+    return markers >= 3;
 }
 
 static UIView *TRBEnsurePageHeader(UIViewController *vc) {
@@ -786,54 +825,84 @@ static UIView *TRBEnsurePageHeader(UIViewController *vc) {
     UIImageView *iv = objc_getAssociatedObject(vc, &kTRBPageHeaderImageKey);
 
     if (!header) {
-        header = [[TRBSourcesTopHeaderView alloc] initWithFrame:CGRectZero];
+        // Real system material glass.
+        UIBlurEffect *blur =
+            [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemMaterial];
+
+        UIVisualEffectView *glass =
+            [[UIVisualEffectView alloc] initWithEffect:blur];
+
+        header = glass;
         header.accessibilityIdentifier = @"TRBSourcesTopHeaderView";
         header.userInteractionEnabled = NO;
         header.clipsToBounds = YES;
-        header.backgroundColor = UIColor.systemBackgroundColor;
+        header.layer.cornerRadius = 26.0;
+        header.layer.cornerCurve = kCACornerCurveContinuous;
         header.layer.zPosition = 99999999.0;
+
+        // Very subtle border, system-derived.
+        header.layer.borderWidth = 0.5;
+        header.layer.borderColor =
+            [UIColor.separatorColor colorWithAlphaComponent:0.28].CGColor;
 
         iv = [[TRBSourcesTopHeaderImageView alloc] initWithFrame:CGRectZero];
         iv.accessibilityIdentifier = @"TRBSourcesTopHeaderImageView";
         iv.contentMode = UIViewContentModeScaleAspectFit;
         iv.userInteractionEnabled = NO;
-        iv.clipsToBounds = YES;
+        iv.clipsToBounds = NO;
         iv.image = TRBSourcesHeaderImage();
         iv.layer.zPosition = 2.0;
 
-        [header addSubview:iv];
+        [glass.contentView addSubview:iv];
         [vc.view addSubview:header];
 
-        objc_setAssociatedObject(vc, &kTRBPageHeaderKey, header, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        objc_setAssociatedObject(vc, &kTRBPageHeaderImageKey, iv, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(
+            vc,
+            &kTRBPageHeaderKey,
+            header,
+            OBJC_ASSOCIATION_RETAIN_NONATOMIC
+        );
+
+        objc_setAssociatedObject(
+            vc,
+            &kTRBPageHeaderImageKey,
+            iv,
+            OBJC_ASSOCIATION_RETAIN_NONATOMIC
+        );
     }
 
-    CGFloat top = vc.view.safeAreaInsets.top;
-    CGFloat height = MAX(104.0, top + 76.0);
+    // Safe horizontal spacing; glass spans almost all screen width.
+    CGFloat side = 12.0;
+    CGFloat top = vc.view.safeAreaInsets.top + 4.0;
+    CGFloat width = MAX(0.0, vc.view.bounds.size.width - (side * 2.0));
+    CGFloat height = 82.0;
 
     header.frame = CGRectMake(
-        0.0,
-        0.0,
-        vc.view.bounds.size.width,
+        side,
+        top,
+        width,
         height
     );
 
-    header.backgroundColor = UIColor.systemBackgroundColor;
+    header.layer.cornerRadius = 26.0;
+    header.layer.cornerCurve = kCACornerCurveContinuous;
     header.layer.zPosition = 99999999.0;
 
     if (iv) {
-        CGFloat imageTop = MAX(4.0, top + 2.0);
-        CGFloat imageHeight = MAX(58.0, height - imageTop - 4.0);
-        CGFloat imageWidth = MIN(vc.view.bounds.size.width - 28.0, 300.0);
+        // Slightly smaller image, centered with transparent breathing room.
+        CGFloat imageWidth = MIN(width - 44.0, 250.0);
+        CGFloat imageHeight = 62.0;
 
         iv.frame = CGRectMake(
-            (vc.view.bounds.size.width - imageWidth) / 2.0,
-            imageTop,
+            (width - imageWidth) / 2.0,
+            (height - imageHeight) / 2.0,
             imageWidth,
             imageHeight
         );
 
-        if (!iv.image) iv.image = TRBSourcesHeaderImage();
+        if (!iv.image) {
+            iv.image = TRBSourcesHeaderImage();
+        }
     }
 
     header.hidden = NO;

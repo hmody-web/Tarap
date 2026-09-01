@@ -912,7 +912,7 @@ static UIViewController *TRBTopControllerFrom(UIViewController *vc) {
         return TRBTopControllerFrom(((UITabBarController *)vc).selectedViewController);
     }
 
-    for (UIViewController *child in vc.children.reverseObjectEnumerator) {
+    for (UIViewController *child in vc.childViewControllers.reverseObjectEnumerator) {
         if (child.isViewLoaded && child.view.window) {
             UIViewController *top = TRBTopControllerFrom(child);
             if (top) return top;

@@ -112,3 +112,11 @@ v5.4:
 - Removes page dots completely from view.
 - Keeps banner frame X=16 Y=117 W=358 H=180.
 - Keeps 12pt spacing and duplicate cleanup.
+
+v5.4.1 BUILD FIX:
+- Fixed Objective-C compile error:
+  vc.children -> vc.childViewControllers
+- No visual or behavioral changes.
+- Keeps return-to-Sources restore, theme-aware full-width backdrop,
+  hidden page dots, duplicate cleanup, 12pt spacing,
+  X=16 Y=117 W=358 H=180.

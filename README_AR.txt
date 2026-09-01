@@ -78,3 +78,12 @@ v1.4 IMMEDIATE CREATE:
 - Also creates/refreshes on UIWindowDidBecomeKey and UIApplicationDidBecomeActive.
 - Fast 0.05s fallback remains.
 - FLEX Runtime Browser should find TRBSourcesTopHeaderView even when hidden.
+
+v1.5 FORCE VISIBLE:
+- Header is attached directly to the current Sources UIViewController.view, not the UIWindow.
+- On Sources: hidden=NO and alpha=1 are forced continuously.
+- zPosition=99999999 inside the current page only.
+- Sources detection uses tab/controller title plus visible source-button markers.
+- Legacy window-level header is disabled.
+- Other pages do not receive the header.
+- Refresh fallback is 0.03 seconds.

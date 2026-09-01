@@ -493,6 +493,8 @@ __attribute__((objc_runtime_name("TRBSourcesTopHeaderImageView")))
 
 static char kTRBSourcesHeaderKey;
 static char kTRBSourcesHeaderImageKey;
+static char kTRBPageHeaderKey;
+static char kTRBPageHeaderImageKey;
 
 static BOOL TRBTextLooksLikeSourcesRoot(UIView *root) {
     if (!root) return NO;
@@ -681,6 +683,196 @@ static UIView *TRBEnsureSourcesHeader(UIWindow *window) {
     return header;
 }
 
+
+static UIViewController *TRBVisibleControllerFrom(UIViewController *vc) {
+    if (!vc) return nil;
+
+    if (vc.presentedViewController) {
+        return TRBVisibleControllerFrom(vc.presentedViewController);
+    }
+
+    if ([vc isKindOfClass:UITabBarController.class]) {
+        return TRBVisibleControllerFrom(((UITabBarController *)vc).selectedViewController);
+    }
+
+    if ([vc isKindOfClass:UINavigationController.class]) {
+        return TRBVisibleControllerFrom(((UINavigationController *)vc).visibleViewController);
+    }
+
+    for (UIViewController *child in vc.childViewControllers.reverseObjectEnumerator) {
+        if (child.isViewLoaded && child.view.window && !child.view.hidden && child.view.alpha > 0.05) {
+            UIViewController *visible = TRBVisibleControllerFrom(child);
+            if (visible) return visible;
+        }
+    }
+
+    return vc;
+}
+
+static BOOL TRBViewContainsSourcesMarkers(UIView *root) {
+    if (!root) return NO;
+
+    BOOL youtube = NO;
+    BOOL google = NO;
+    BOOL instagram = NO;
+    BOOL tiktok = NO;
+
+    NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:root];
+
+    while (stack.count) {
+        UIView *v = stack.lastObject;
+        [stack removeLastObject];
+
+        if (v.hidden || v.alpha < 0.05) continue;
+
+        NSString *text = nil;
+        if ([v isKindOfClass:UILabel.class]) {
+            text = ((UILabel *)v).text;
+        } else if ([v isKindOfClass:UIButton.class]) {
+            text = [((UIButton *)v) titleForState:UIControlStateNormal];
+        }
+
+        if (text.length) {
+            if ([text containsString:@"يوتيوب"] || [text localizedCaseInsensitiveContainsString:@"YouTube"]) youtube = YES;
+            if ([text containsString:@"جوجل"] || [text localizedCaseInsensitiveContainsString:@"Google"]) google = YES;
+            if ([text containsString:@"انستجرام"] || [text containsString:@"انستغرام"] || [text localizedCaseInsensitiveContainsString:@"Instagram"]) instagram = YES;
+            if ([text containsString:@"تيك توك"] || [text localizedCaseInsensitiveContainsString:@"TikTok"]) tiktok = YES;
+        }
+
+        for (UIView *sub in v.subviews) {
+            [stack addObject:sub];
+        }
+    }
+
+    // Main Sources page should expose at least two source buttons simultaneously.
+    NSInteger count = (youtube ? 1 : 0) + (google ? 1 : 0) + (instagram ? 1 : 0) + (tiktok ? 1 : 0);
+    return count >= 2;
+}
+
+static BOOL TRBControllerIsSourcesPage(UIViewController *vc) {
+    if (!vc || !vc.isViewLoaded || !vc.view.window) return NO;
+
+    NSString *title = vc.title ?: @"";
+    UITabBarItem *item = vc.tabBarItem;
+    NSString *tabTitle = item.title ?: @"";
+
+    if ([title containsString:@"المصادر"] ||
+        [tabTitle containsString:@"المصادر"] ||
+        [title localizedCaseInsensitiveContainsString:@"Sources"] ||
+        [tabTitle localizedCaseInsensitiveContainsString:@"Sources"]) {
+        return YES;
+    }
+
+    UIViewController *parent = vc.parentViewController;
+    while (parent) {
+        NSString *pt = parent.title ?: @"";
+        NSString *pTab = parent.tabBarItem.title ?: @"";
+        if ([pt containsString:@"المصادر"] ||
+            [pTab containsString:@"المصادر"] ||
+            [pt localizedCaseInsensitiveContainsString:@"Sources"] ||
+            [pTab localizedCaseInsensitiveContainsString:@"Sources"]) {
+            return YES;
+        }
+        parent = parent.parentViewController;
+    }
+
+    return TRBViewContainsSourcesMarkers(vc.view);
+}
+
+static UIView *TRBEnsurePageHeader(UIViewController *vc) {
+    if (!vc || !vc.isViewLoaded) return nil;
+
+    UIView *header = objc_getAssociatedObject(vc, &kTRBPageHeaderKey);
+    UIImageView *iv = objc_getAssociatedObject(vc, &kTRBPageHeaderImageKey);
+
+    if (!header) {
+        header = [[TRBSourcesTopHeaderView alloc] initWithFrame:CGRectZero];
+        header.accessibilityIdentifier = @"TRBSourcesTopHeaderView";
+        header.userInteractionEnabled = NO;
+        header.clipsToBounds = YES;
+        header.backgroundColor = UIColor.systemBackgroundColor;
+        header.layer.zPosition = 99999999.0;
+
+        iv = [[TRBSourcesTopHeaderImageView alloc] initWithFrame:CGRectZero];
+        iv.accessibilityIdentifier = @"TRBSourcesTopHeaderImageView";
+        iv.contentMode = UIViewContentModeScaleAspectFit;
+        iv.userInteractionEnabled = NO;
+        iv.clipsToBounds = YES;
+        iv.image = TRBSourcesHeaderImage();
+        iv.layer.zPosition = 2.0;
+
+        [header addSubview:iv];
+        [vc.view addSubview:header];
+
+        objc_setAssociatedObject(vc, &kTRBPageHeaderKey, header, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(vc, &kTRBPageHeaderImageKey, iv, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+
+    CGFloat top = vc.view.safeAreaInsets.top;
+    CGFloat height = MAX(104.0, top + 76.0);
+
+    header.frame = CGRectMake(
+        0.0,
+        0.0,
+        vc.view.bounds.size.width,
+        height
+    );
+
+    header.backgroundColor = UIColor.systemBackgroundColor;
+    header.layer.zPosition = 99999999.0;
+
+    if (iv) {
+        CGFloat imageTop = MAX(4.0, top + 2.0);
+        CGFloat imageHeight = MAX(58.0, height - imageTop - 4.0);
+        CGFloat imageWidth = MIN(vc.view.bounds.size.width - 28.0, 300.0);
+
+        iv.frame = CGRectMake(
+            (vc.view.bounds.size.width - imageWidth) / 2.0,
+            imageTop,
+            imageWidth,
+            imageHeight
+        );
+
+        if (!iv.image) iv.image = TRBSourcesHeaderImage();
+    }
+
+    header.hidden = NO;
+    header.alpha = 1.0;
+    [vc.view bringSubviewToFront:header];
+
+    return header;
+}
+
+static void TRBRefreshPageHeader(UIWindow *window) {
+    if (!window || !window.rootViewController) return;
+
+    UIViewController *visible = TRBVisibleControllerFrom(window.rootViewController);
+    if (!visible) return;
+
+    BOOL isSources = TRBControllerIsSourcesPage(visible);
+
+    // Hide any legacy window-level header; use only the page-local header now.
+    UIView *legacy = objc_getAssociatedObject(window, &kTRBSourcesHeaderKey);
+    if (legacy) {
+        legacy.hidden = YES;
+        legacy.alpha = 0.0;
+    }
+
+    if (isSources) {
+        UIView *header = TRBEnsurePageHeader(visible);
+        header.hidden = NO;
+        header.alpha = 1.0;
+        header.layer.zPosition = 99999999.0;
+        [visible.view bringSubviewToFront:header];
+    } else {
+        UIView *header = objc_getAssociatedObject(visible, &kTRBPageHeaderKey);
+        if (header) {
+            header.hidden = YES;
+            header.alpha = 0.0;
+        }
+    }
+}
+
 static BOOL TRBWindowIsShowingSourcesRoot(UIWindow *window) {
     if (!window || window.hidden || window.alpha <= 0.01) return NO;
 
@@ -706,32 +898,13 @@ static BOOL TRBWindowIsShowingSourcesRoot(UIWindow *window) {
 __attribute__((constructor))
 static void TRBSourcesHeaderEntry(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
-        // Create the actual runtime class instance immediately.
-        TRBCreateSourcesHeaderImmediately();
-
         void (^refresh)(void) = ^{
-            TRBCreateSourcesHeaderImmediately();
-
             for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
                 if (![scene isKindOfClass:UIWindowScene.class]) continue;
 
                 for (UIWindow *window in ((UIWindowScene *)scene).windows) {
-                    TRBCreateSourcesHeaderImmediatelyForWindow(window);
-
-                    UIView *header =
-                        objc_getAssociatedObject(window, &kTRBSourcesHeaderKey);
-
-                    if (!header) continue;
-
-                    BOOL show = TRBWindowIsShowingSourcesRoot(window);
-
-                    header.hidden = !show;
-                    header.alpha = show ? 1.0 : 0.0;
-
-                    if (show) {
-                        TRBEnsureSourcesHeader(window);
-                        [window bringSubviewToFront:header];
-                    }
+                    if (window.hidden || window.alpha < 0.05) continue;
+                    TRBRefreshPageHeader(window);
                 }
             }
         };
@@ -754,7 +927,7 @@ static void TRBSourcesHeaderEntry(void) {
             refresh();
         }];
 
-        [NSTimer scheduledTimerWithTimeInterval:0.05
+        [NSTimer scheduledTimerWithTimeInterval:0.03
                                          repeats:YES
                                            block:^(__unused NSTimer *timer) {
             refresh();

@@ -478,7 +478,7 @@ static void TRBDotsCoverEntry_v14(void) {
 
 
 __attribute__((objc_runtime_name("TRBSourcesTopHeaderView")))
-@interface TRBSourcesTopHeaderView : UIView
+@interface TRBSourcesTopHeaderView : UIVisualEffectView
 @end
 @implementation TRBSourcesTopHeaderView
 @end
@@ -495,6 +495,8 @@ static char kTRBSourcesHeaderKey;
 static char kTRBSourcesHeaderImageKey;
 static char kTRBPageHeaderKey;
 static char kTRBPageHeaderImageKey;
+static char kTRBGlobalGlassHeaderKey;
+static char kTRBGlobalGlassImageKey;
 
 static BOOL TRBTextLooksLikeSourcesRoot(UIView *root) {
     if (!root) return NO;
@@ -749,6 +751,186 @@ static BOOL TRBViewContainsSourcesMarkers(UIView *root) {
     return count >= 2;
 }
 
+
+static BOOL TRBIsFrontmostVisibleView(UIView *view) {
+    if (!view || !view.window || view.hidden || view.alpha < 0.05) return NO;
+
+    CGRect r = [view convertRect:view.bounds toView:view.window];
+    if (!CGRectIntersectsRect(r, view.window.bounds)) return NO;
+
+    CGPoint p = CGPointMake(CGRectGetMidX(r), CGRectGetMidY(r));
+    UIView *hit = [view.window hitTest:p withEvent:nil];
+
+    if (!hit) return NO;
+    if (hit == view || [hit isDescendantOfView:view]) return YES;
+
+    // Labels themselves may be non-interactive; accept a short visible ancestor chain.
+    UIView *a = view.superview;
+    for (NSUInteger i = 0; a && i < 4; i++, a = a.superview) {
+        if (hit == a || [hit isDescendantOfView:a]) return YES;
+    }
+
+    return NO;
+}
+
+static BOOL TRBWindowShowsSourcesHomeFrontmost(UIWindow *window) {
+    if (!window || window.hidden || window.alpha < 0.05) return NO;
+
+    BOOL youtube = NO;
+    BOOL trends = NO;
+    BOOL google = NO;
+    BOOL instagram = NO;
+    BOOL tiktok = NO;
+
+    NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:window];
+    NSUInteger inspected = 0;
+
+    while (stack.count && inspected < 2500) {
+        UIView *v = stack.lastObject;
+        [stack removeLastObject];
+        inspected++;
+
+        if (v.hidden || v.alpha < 0.05) continue;
+
+        NSString *text = nil;
+        if ([v isKindOfClass:UILabel.class]) {
+            text = ((UILabel *)v).text;
+        } else if ([v isKindOfClass:UIButton.class]) {
+            text = [((UIButton *)v) titleForState:UIControlStateNormal];
+        }
+
+        if (text.length && TRBIsFrontmostVisibleView(v)) {
+            if ([text containsString:@"يوتيوب"] ||
+                [text localizedCaseInsensitiveContainsString:@"YouTube"]) youtube = YES;
+
+            if ([text containsString:@"ترندات"] ||
+                [text localizedCaseInsensitiveContainsString:@"Trending"]) trends = YES;
+
+            if ([text containsString:@"جوجل"] ||
+                [text localizedCaseInsensitiveContainsString:@"Google"]) google = YES;
+
+            if ([text containsString:@"انستجرام"] ||
+                [text containsString:@"انستغرام"] ||
+                [text localizedCaseInsensitiveContainsString:@"Instagram"]) instagram = YES;
+
+            if ([text containsString:@"تيك توك"] ||
+                [text localizedCaseInsensitiveContainsString:@"TikTok"]) tiktok = YES;
+        }
+
+        for (UIView *sub in v.subviews) {
+            [stack addObject:sub];
+        }
+    }
+
+    NSInteger markers =
+        (youtube ? 1 : 0) +
+        (trends ? 1 : 0) +
+        (google ? 1 : 0) +
+        (instagram ? 1 : 0) +
+        (tiktok ? 1 : 0);
+
+    return markers >= 3;
+}
+
+static TRBSourcesTopHeaderView *TRBCreateGlobalGlassHeader(UIWindow *window) {
+    if (!window) return nil;
+
+    TRBSourcesTopHeaderView *header =
+        objc_getAssociatedObject(window, &kTRBGlobalGlassHeaderKey);
+
+    TRBSourcesTopHeaderImageView *iv =
+        objc_getAssociatedObject(window, &kTRBGlobalGlassImageKey);
+
+    if (!header) {
+        UIBlurEffect *blur =
+            [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemMaterial];
+
+        header =
+            [[TRBSourcesTopHeaderView alloc] initWithEffect:blur];
+
+        header.accessibilityIdentifier = @"TRBSourcesTopHeaderView";
+        header.userInteractionEnabled = NO;
+        header.clipsToBounds = YES;
+        header.layer.cornerRadius = 26.0;
+        header.layer.cornerCurve = kCACornerCurveContinuous;
+        header.layer.borderWidth = 0.5;
+        header.layer.borderColor =
+            [UIColor.separatorColor colorWithAlphaComponent:0.25].CGColor;
+        header.layer.zPosition = 99999999.0;
+
+        iv = [[TRBSourcesTopHeaderImageView alloc] initWithFrame:CGRectZero];
+        iv.accessibilityIdentifier = @"TRBSourcesTopHeaderImageView";
+        iv.contentMode = UIViewContentModeScaleAspectFit;
+        iv.userInteractionEnabled = NO;
+        iv.image = TRBSourcesHeaderImage();
+
+        [header.contentView addSubview:iv];
+        [window addSubview:header];
+
+        objc_setAssociatedObject(
+            window,
+            &kTRBGlobalGlassHeaderKey,
+            header,
+            OBJC_ASSOCIATION_RETAIN_NONATOMIC
+        );
+
+        objc_setAssociatedObject(
+            window,
+            &kTRBGlobalGlassImageKey,
+            iv,
+            OBJC_ASSOCIATION_RETAIN_NONATOMIC
+        );
+
+        NSLog(@"[TarabBannerHider] TRBSourcesTopHeaderView CREATED");
+    }
+
+    CGFloat side = 12.0;
+    CGFloat safeTop = window.safeAreaInsets.top;
+    CGFloat y = MAX(4.0, safeTop + 4.0);
+    CGFloat width = MAX(0.0, window.bounds.size.width - 24.0);
+    CGFloat height = 82.0;
+
+    header.frame = CGRectMake(side, y, width, height);
+    header.layer.cornerRadius = 26.0;
+    header.layer.cornerCurve = kCACornerCurveContinuous;
+    header.layer.zPosition = 99999999.0;
+
+    if (iv) {
+        CGFloat iw = MIN(width - 48.0, 242.0);
+        CGFloat ih = 58.0;
+        iv.frame = CGRectMake(
+            (width - iw) / 2.0,
+            (height - ih) / 2.0,
+            iw,
+            ih
+        );
+
+        if (!iv.image) {
+            iv.image = TRBSourcesHeaderImage();
+        }
+    }
+
+    return header;
+}
+
+static void TRBRefreshGlobalGlassHeader(UIWindow *window) {
+    if (!window) return;
+
+    // Always create the real runtime instance first.
+    TRBSourcesTopHeaderView *header = TRBCreateGlobalGlassHeader(window);
+    if (!header) return;
+
+    BOOL show = TRBWindowShowsSourcesHomeFrontmost(window);
+
+    header.hidden = !show;
+    header.alpha = show ? 1.0 : 0.0;
+
+    if (show) {
+        header.layer.zPosition = 99999999.0;
+        [window bringSubviewToFront:header];
+    }
+}
+
 static BOOL TRBControllerIsSourcesPage(UIViewController *vc) {
     if (!vc || !vc.isViewLoaded || !vc.view.window) return NO;
 
@@ -973,11 +1155,12 @@ static void TRBSourcesHeaderEntry(void) {
 
                 for (UIWindow *window in ((UIWindowScene *)scene).windows) {
                     if (window.hidden || window.alpha < 0.05) continue;
-                    TRBRefreshPageHeader(window);
+                    TRBRefreshGlobalGlassHeader(window);
                 }
             }
         };
 
+        // Immediate creation; FLEX can find the class even when it is hidden.
         refresh();
 
         [[NSNotificationCenter defaultCenter]

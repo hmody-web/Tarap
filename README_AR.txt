@@ -97,3 +97,12 @@ v1.6 GLASS ROOT ONLY:
 - Child pages (YouTube/Google/Instagram/TikTok/etc.) cannot inherit Sources status
   from parent/tab controllers.
 - Requires at least 3 visible Sources-home markers on the current VC.
+
+v1.7 RUNTIME GLASS:
+- TRBSourcesTopHeaderView is now a real UIVisualEffectView subclass.
+- Instance is created immediately on each active UIWindow.
+- FLEX Runtime Browser / View hierarchy can find TRBSourcesTopHeaderView even when hidden.
+- Visibility uses frontmost visible Sources-home markers across the window.
+- Underlying Sources controls covered by YouTube/Google/etc. do not count as frontmost.
+- Header is shown only when at least 3 Sources-home markers are actually frontmost.
+- Exact transparent PNG and system-material glass are preserved.

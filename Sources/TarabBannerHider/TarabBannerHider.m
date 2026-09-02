@@ -701,7 +701,6 @@ static UIImage *TRBSourcesHeaderImage(void);
 - (void)viewDidDisappear:(BOOL)animated {
     [super viewDidDisappear:animated];
     TRBTarabPlusSheetOpen_v22 = NO;
-    TRBRestorePinnedHeader_v23();
 }
 
 - (void)trbOpenTelegram:(UIButton *)sender {
@@ -762,7 +761,23 @@ static BOOL TRBHeaderInsidePlusSheet_v24(UIView *view) {
     TRBPlusSheetViewController *sheetVC = [[TRBPlusSheetViewController alloc] init];
     sheetVC.modalPresentationStyle = UIModalPresentationPageSheet;
 
-    if (@available(iOS 15.0, *)) {
+    if (@available(iOS 16.0, *)) {
+        UISheetPresentationController *sheet = sheetVC.sheetPresentationController;
+        UISheetPresentationControllerDetentIdentifier initialID = @"TRBPlusInitialPlus20";
+        UISheetPresentationControllerDetent *initialDetent =
+            [UISheetPresentationControllerDetent customDetentWithIdentifier:initialID
+                                                                   resolver:^CGFloat(id<UISheetPresentationControllerDetentResolutionContext> context) {
+                CGFloat target = (context.maximumDetentValue * 0.5) + 20.0;
+                return MIN(target, context.maximumDetentValue - 40.0);
+            }];
+        sheet.detents = @[
+            initialDetent,
+            [UISheetPresentationControllerDetent largeDetent]
+        ];
+        sheet.selectedDetentIdentifier = initialID;
+        sheet.prefersGrabberVisible = YES;
+        sheet.prefersScrollingExpandsWhenScrolledToEdge = YES;
+    } else if (@available(iOS 15.0, *)) {
         UISheetPresentationController *sheet = sheetVC.sheetPresentationController;
         sheet.detents = @[
             [UISheetPresentationControllerDetent mediumDetent],
@@ -773,10 +788,10 @@ static BOOL TRBHeaderInsidePlusSheet_v24(UIView *view) {
         sheet.prefersScrollingExpandsWhenScrolledToEdge = YES;
     }
 
-    // Keep the real top bar visible in its original screen position,
-    // but detach it from the page so it cannot move into the presented sheet.
+    // Keep the Sources header in its original page hierarchy.
+    // At the initial detent it remains visible in the uncovered area.
+    // When the sheet expands to Large, UIKit naturally covers it.
     TRBTarabPlusSheetOpen_v22 = YES;
-    TRBPinHeaderBehindSheet_v23(self);
 
     [presenter presentViewController:sheetVC animated:YES completion:nil];
 }
@@ -1389,6 +1404,10 @@ static TRBSourcesTopHeaderView *TRBEnsurePageBoundHeader(UIViewController *vc) {
 
 static void TRBRefreshGlobalGlassHeader(UIWindow *window) {
     if (!window || !window.rootViewController) return;
+
+    // Never create/move a Sources header into TRBPlusSheetViewController.
+    // The original Sources header stays underneath the native sheet.
+    if (TRBTarabPlusSheetOpen_v22) return;
 
     // Keep the old window-level header disabled permanently.
     TRBSourcesTopHeaderView *globalHeader =
@@ -2203,5 +2222,149 @@ static void TRBInstallSongsTableYForce_v24(void) {
 __attribute__((constructor))
 static void TRBSongsTableYEntry_v24(void) {
     TRBInstallSongsTableYForce_v24();
+}
+
+
+
+
+#pragma mark - v25 Native Mohammed Alsaray profile sheet
+
+@interface UINavigationController (TRBProfileSheetClose_v25)
+- (void)trbDismissProfileSheet_v25;
+@end
+
+@implementation UINavigationController (TRBProfileSheetClose_v25)
+- (void)trbDismissProfileSheet_v25 {
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+@end
+
+static BOOL TRBViewContainsText_v25(UIView *root, NSString *needle) {
+    if (!root || needle.length == 0) return NO;
+
+    NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:root];
+    while (stack.count) {
+        UIView *v = stack.lastObject;
+        [stack removeLastObject];
+
+        NSString *text = nil;
+        if ([v isKindOfClass:UILabel.class]) {
+            text = ((UILabel *)v).text;
+        } else if ([v isKindOfClass:UIButton.class]) {
+            text = [((UIButton *)v) titleForState:UIControlStateNormal];
+        } else if ([v isKindOfClass:UITextView.class]) {
+            text = ((UITextView *)v).text;
+        }
+
+        if (text.length && [text containsString:needle]) return YES;
+        for (UIView *sub in v.subviews) [stack addObject:sub];
+    }
+    return NO;
+}
+
+static BOOL TRBLooksLikeMohammedProfile_v25(UIViewController *vc) {
+    if (!vc) return NO;
+
+    NSString *className = NSStringFromClass(vc.class) ?: @"";
+    NSString *title = vc.title ?: @"";
+
+    if ([title containsString:@"محمد السراي"]) return YES;
+
+    BOOL classHint =
+        [className localizedCaseInsensitiveContainsString:@"profile"] ||
+        [className localizedCaseInsensitiveContainsString:@"developer"] ||
+        [className localizedCaseInsensitiveContainsString:@"about"];
+
+    [vc loadViewIfNeeded];
+
+    BOOL nameFound = TRBViewContainsText_v25(vc.view, @"محمد السراي");
+    return nameFound && (classHint || vc.view != nil);
+}
+
+static BOOL TRBCurrentPageLooksLikeMore_v25(UIViewController *vc) {
+    if (!vc) return NO;
+    [vc loadViewIfNeeded];
+
+    // The More page contains the Mohammed Alsaray row/card that launches profile.
+    return TRBViewContainsText_v25(vc.view, @"محمد السراي");
+}
+
+static IMP TRBOrigPushVC_v25 = NULL;
+
+static void TRBPushVC_v25(UINavigationController *nav,
+                          SEL _cmd,
+                          UIViewController *vc,
+                          BOOL animated) {
+    UIViewController *source = nav.visibleViewController;
+
+    if (vc &&
+        source &&
+        TRBCurrentPageLooksLikeMore_v25(source) &&
+        TRBLooksLikeMohammedProfile_v25(vc)) {
+
+        // Use the ORIGINAL profile VC/content, only replace navigation style.
+        UINavigationController *sheetNav =
+            [[UINavigationController alloc] initWithRootViewController:vc];
+        sheetNav.modalPresentationStyle = UIModalPresentationPageSheet;
+
+        if (@available(iOS 16.0, *)) {
+            UISheetPresentationController *sheet = sheetNav.sheetPresentationController;
+
+            UISheetPresentationControllerDetentIdentifier profileID =
+                @"TRBMohammedProfileFixed";
+
+            UISheetPresentationControllerDetent *profileDetent =
+                [UISheetPresentationControllerDetent customDetentWithIdentifier:profileID
+                                                                       resolver:^CGFloat(id<UISheetPresentationControllerDetentResolutionContext> context) {
+                    CGFloat target = (context.maximumDetentValue * 0.5) + 20.0;
+                    return MIN(target, context.maximumDetentValue - 40.0);
+                }];
+
+            // ONE detent only: user cannot drag this profile sheet to Full Screen.
+            sheet.detents = @[profileDetent];
+            sheet.selectedDetentIdentifier = profileID;
+            sheet.prefersGrabberVisible = YES;
+            sheet.prefersScrollingExpandsWhenScrolledToEdge = NO;
+            sheet.prefersEdgeAttachedInCompactHeight = YES;
+        } else if (@available(iOS 15.0, *)) {
+            UISheetPresentationController *sheet = sheetNav.sheetPresentationController;
+            sheet.detents = @[[UISheetPresentationControllerDetent mediumDetent]];
+            sheet.selectedDetentIdentifier = UISheetPresentationControllerDetentIdentifierMedium;
+            sheet.prefersGrabberVisible = YES;
+            sheet.prefersScrollingExpandsWhenScrolledToEdge = NO;
+        }
+
+        // Add a native close button only if the original page does not already have one.
+        if (!vc.navigationItem.leftBarButtonItem) {
+            vc.navigationItem.leftBarButtonItem =
+                [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemClose
+                                                             target:sheetNav
+                                                             action:@selector(trbDismissProfileSheet_v25)];
+        }
+
+        [source presentViewController:sheetNav animated:YES completion:nil];
+        return;
+    }
+
+    ((void(*)(id,SEL,id,BOOL))TRBOrigPushVC_v25)(nav, _cmd, vc, animated);
+}
+
+static void TRBInstallProfileSheetHook_v25(void) {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        Method m = class_getInstanceMethod(UINavigationController.class,
+                                           @selector(pushViewController:animated:));
+        if (!m) return;
+
+        TRBOrigPushVC_v25 = method_getImplementation(m);
+        method_setImplementation(m, (IMP)TRBPushVC_v25);
+    });
+}
+
+__attribute__((constructor))
+static void TRBProfileSheetEntry_v25(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        TRBInstallProfileSheetHook_v25();
+    });
 }
 

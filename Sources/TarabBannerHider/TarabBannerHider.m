@@ -1583,7 +1583,7 @@ static void TRBSourcesHeaderEntry(void) {
             [d setDouble:0.0 forKey:@"TRB_targetX"];
         }
         if ([d objectForKey:@"TRB_targetY"] == nil) {
-            [d setDouble:-160.0 forKey:@"TRB_targetY"];
+            [d setDouble:-147.0 forKey:@"TRB_targetY"];
         }
         if ([d objectForKey:@"TRB_targetWidth"] == nil) {
             [d setDouble:390.0 forKey:@"TRB_targetWidth"];
@@ -1726,7 +1726,7 @@ static CGRect TRBForcedAnyViewFrame(void) {
 
     return CGRectMake(
         cfg.targetX,
-        cfg.targetY,
+        -147.0,
         cfg.targetWidth,
         cfg.targetHeight
     );
@@ -1882,7 +1882,7 @@ static void TRBApplySavedRuntimeFrame(void) {
     TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
     CGRect wanted = CGRectMake(
         cfg.targetX,
-        cfg.targetY,
+        -147.0,
         cfg.targetWidth,
         cfg.targetHeight
     );

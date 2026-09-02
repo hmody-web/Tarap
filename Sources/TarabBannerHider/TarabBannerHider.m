@@ -479,8 +479,195 @@ static void TRBDotsCoverEntry_v14(void) {
 
 __attribute__((objc_runtime_name("TRBSourcesTopHeaderView")))
 @interface TRBSourcesTopHeaderView : UIVisualEffectView
+@property(nonatomic, weak) UIViewController *trbPresentingController;
 @end
+
+@interface TRBPlusSheetViewController : UIViewController
+@property(nonatomic, strong) NSArray<UIView *> *trbAnimatedRows;
+@end
+
+static UIImage *TRBSourcesHeaderImage(void);
+
+@implementation TRBPlusSheetViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.view.backgroundColor = UIColor.systemBackgroundColor;
+    self.view.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
+
+    UIScrollView *scroll = [[UIScrollView alloc] initWithFrame:CGRectZero];
+    scroll.translatesAutoresizingMaskIntoConstraints = NO;
+    scroll.alwaysBounceVertical = YES;
+    [self.view addSubview:scroll];
+
+    UIStackView *stack = [[UIStackView alloc] initWithFrame:CGRectZero];
+    stack.translatesAutoresizingMaskIntoConstraints = NO;
+    stack.axis = UILayoutConstraintAxisVertical;
+    stack.alignment = UIStackViewAlignmentFill;
+    stack.distribution = UIStackViewDistributionFill;
+    stack.spacing = 14.0;
+    [scroll addSubview:stack];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [scroll.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+        [scroll.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+        [scroll.topAnchor constraintEqualToAnchor:self.view.topAnchor],
+        [scroll.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
+
+        [stack.leadingAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.leadingAnchor constant:22.0],
+        [stack.trailingAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.trailingAnchor constant:-22.0],
+        [stack.topAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.topAnchor constant:24.0],
+        [stack.bottomAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.bottomAnchor constant:-28.0],
+        [stack.widthAnchor constraintEqualToAnchor:scroll.frameLayoutGuide.widthAnchor constant:-44.0],
+    ]];
+
+    UIImageView *logo = [[UIImageView alloc] initWithImage:TRBSourcesHeaderImage()];
+    logo.translatesAutoresizingMaskIntoConstraints = NO;
+    logo.contentMode = UIViewContentModeScaleAspectFit;
+    [logo.heightAnchor constraintEqualToConstant:74.0].active = YES;
+    [stack addArrangedSubview:logo];
+
+    UILabel *title = [[UILabel alloc] initWithFrame:CGRectZero];
+    title.text = @"طرب +";
+    title.textAlignment = NSTextAlignmentCenter;
+    title.font = [UIFont systemFontOfSize:28.0 weight:UIFontWeightBold];
+    title.textColor = UIColor.labelColor;
+    [stack addArrangedSubview:title];
+
+    UIView *spacer = [[UIView alloc] initWithFrame:CGRectZero];
+    [spacer.heightAnchor constraintEqualToConstant:2.0].active = YES;
+    [stack addArrangedSubview:spacer];
+
+    NSArray<NSString *> *items = @[
+        @"تصفح الملفات بسهولة وبطريقة امنة",
+        @"لا يحتوي على اعلانات داخلية او خارجية",
+        @"امكانية التنزيل من اليوتيوب وجميع الروابط",
+        @"تم التأكد من اخر اصدار لطرب 5.11",
+        @"تواصل معنا ان واجهت مشاكل في التطبيق"
+    ];
+
+    NSMutableArray<UIView *> *animated = [NSMutableArray array];
+
+    for (NSString *text in items) {
+        UIView *row = [[UIView alloc] initWithFrame:CGRectZero];
+        row.translatesAutoresizingMaskIntoConstraints = NO;
+        row.alpha = 0.0;
+        row.transform = CGAffineTransformMakeTranslation(0.0, 16.0);
+
+        UIImageSymbolConfiguration *symbolConfig =
+            [UIImageSymbolConfiguration configurationWithPointSize:20.0 weight:UIImageSymbolWeightSemibold];
+        UIImage *checkImage = [UIImage systemImageNamed:@"checkmark.circle.fill" withConfiguration:symbolConfig];
+        UIImageView *check = [[UIImageView alloc] initWithImage:checkImage];
+        check.translatesAutoresizingMaskIntoConstraints = NO;
+        check.contentMode = UIViewContentModeScaleAspectFit;
+        check.tintColor = self.view.tintColor;
+
+        UILabel *label = [[UILabel alloc] initWithFrame:CGRectZero];
+        label.translatesAutoresizingMaskIntoConstraints = NO;
+        label.text = text;
+        label.numberOfLines = 0;
+        label.textAlignment = NSTextAlignmentNatural;
+        label.font = [UIFont systemFontOfSize:16.5 weight:UIFontWeightMedium];
+        label.textColor = UIColor.labelColor;
+        label.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
+
+        [row addSubview:check];
+        [row addSubview:label];
+
+        [NSLayoutConstraint activateConstraints:@[
+            [check.trailingAnchor constraintEqualToAnchor:row.trailingAnchor],
+            [check.topAnchor constraintGreaterThanOrEqualToAnchor:row.topAnchor constant:2.0],
+            [check.widthAnchor constraintEqualToConstant:24.0],
+            [check.heightAnchor constraintEqualToConstant:24.0],
+
+            [label.trailingAnchor constraintEqualToAnchor:check.leadingAnchor constant:-10.0],
+            [label.leadingAnchor constraintEqualToAnchor:row.leadingAnchor],
+            [label.topAnchor constraintEqualToAnchor:row.topAnchor],
+            [label.bottomAnchor constraintEqualToAnchor:row.bottomAnchor],
+            [row.heightAnchor constraintGreaterThanOrEqualToConstant:34.0],
+        ]];
+
+        [stack addArrangedSubview:row];
+        [animated addObject:row];
+    }
+
+    UIButton *contact = [UIButton buttonWithType:UIButtonTypeSystem];
+    contact.translatesAutoresizingMaskIntoConstraints = NO;
+    contact.accessibilityIdentifier = @"TRBDirectContactButton";
+
+    if (@available(iOS 15.0, *)) {
+        UIButtonConfiguration *configuration = [UIButtonConfiguration filledButtonConfiguration];
+        configuration.title = @"التواصل المباشر";
+        configuration.image = [UIImage systemImageNamed:@"paperplane.fill"];
+        configuration.imagePadding = 8.0;
+        configuration.cornerStyle = UIButtonConfigurationCornerStyleLarge;
+        contact.configuration = configuration;
+    } else {
+        [contact setTitle:@"التواصل المباشر" forState:UIControlStateNormal];
+    }
+
+    [contact.heightAnchor constraintEqualToConstant:52.0].active = YES;
+    [contact addTarget:self action:@selector(trbOpenTelegram:) forControlEvents:UIControlEventTouchUpInside];
+    contact.alpha = 0.0;
+    contact.transform = CGAffineTransformMakeTranslation(0.0, 16.0);
+    [stack addArrangedSubview:contact];
+    [animated addObject:contact];
+
+    self.trbAnimatedRows = animated;
+}
+
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+
+    [self.trbAnimatedRows enumerateObjectsUsingBlock:^(UIView *view, NSUInteger idx, BOOL *stop) {
+        [UIView animateWithDuration:0.42
+                              delay:0.07 * idx
+             usingSpringWithDamping:0.86
+              initialSpringVelocity:0.25
+                            options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction
+                         animations:^{
+            view.alpha = 1.0;
+            view.transform = CGAffineTransformIdentity;
+        } completion:nil];
+    }];
+}
+
+- (void)trbOpenTelegram:(UIButton *)sender {
+    NSURL *url = [NSURL URLWithString:@"https://t.me/Mooo5"];
+    if (!url) return;
+    [UIApplication.sharedApplication openURL:url options:@{} completionHandler:nil];
+}
+
+@end
+
 @implementation TRBSourcesTopHeaderView
+
+- (void)trbHandleTap:(UITapGestureRecognizer *)tap {
+    if (tap.state != UIGestureRecognizerStateEnded) return;
+
+    UIViewController *presenter = self.trbPresentingController;
+    if (!presenter || presenter.presentedViewController) return;
+
+    UIImpactFeedbackGenerator *feedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
+    [feedback impactOccurred];
+
+    TRBPlusSheetViewController *sheetVC = [[TRBPlusSheetViewController alloc] init];
+    sheetVC.modalPresentationStyle = UIModalPresentationPageSheet;
+
+    if (@available(iOS 15.0, *)) {
+        UISheetPresentationController *sheet = sheetVC.sheetPresentationController;
+        sheet.detents = @[
+            [UISheetPresentationControllerDetent mediumDetent],
+            [UISheetPresentationControllerDetent largeDetent]
+        ];
+        sheet.selectedDetentIdentifier = UISheetPresentationControllerDetentIdentifierMedium;
+        sheet.prefersGrabberVisible = YES;
+        sheet.prefersScrollingExpandsWhenScrolledToEdge = YES;
+    }
+
+    [presenter presentViewController:sheetVC animated:YES completion:nil];
+}
+
 @end
 
 __attribute__((objc_runtime_name("TRBSourcesTopHeaderImageView")))
@@ -995,19 +1182,27 @@ static TRBSourcesTopHeaderView *TRBEnsurePageBoundHeader(UIViewController *vc) {
         objc_getAssociatedObject(vc, &kTRBPageBoundHeaderImageKey);
 
     if (!header) {
-        UIBlurEffect *blur =
-            [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemMaterial];
+        UIVisualEffect *nativeEffect = nil;
 
-        header = [[TRBSourcesTopHeaderView alloc] initWithEffect:blur];
+        if (@available(iOS 26.0, *)) {
+            UIGlassEffect *glass = [UIGlassEffect effectWithStyle:UIGlassEffectStyleRegular];
+            glass.interactive = YES;
+            nativeEffect = glass;
+        } else {
+            nativeEffect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemMaterial];
+        }
+
+        header = [[TRBSourcesTopHeaderView alloc] initWithEffect:nativeEffect];
         header.accessibilityIdentifier = @"TRBSourcesTopHeaderView";
-        header.userInteractionEnabled = NO;
+        header.userInteractionEnabled = YES;
         header.clipsToBounds = YES;
         header.layer.cornerRadius = 26.0;
         header.layer.cornerCurve = kCACornerCurveContinuous;
-        header.layer.borderWidth = 0.5;
-        header.layer.borderColor =
-            [UIColor.separatorColor colorWithAlphaComponent:0.25].CGColor;
         header.layer.zPosition = 99999999.0;
+
+        UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:header action:@selector(trbHandleTap:)];
+        tap.cancelsTouchesInView = YES;
+        [header addGestureRecognizer:tap];
 
         iv = [[TRBSourcesTopHeaderImageView alloc] initWithFrame:CGRectZero];
         iv.accessibilityIdentifier = @"TRBSourcesTopHeaderImageView";
@@ -1034,8 +1229,7 @@ static TRBSourcesTopHeaderView *TRBEnsurePageBoundHeader(UIViewController *vc) {
     }
 
     CGFloat side = 12.0;
-    CGFloat safeTop = vc.view.safeAreaInsets.top;
-    CGFloat y = MAX(4.0, safeTop + 4.0);
+    CGFloat y = 192.0;
     CGFloat width = MAX(0.0, vc.view.bounds.size.width - 24.0);
     CGFloat height = 82.0;
 
@@ -1058,6 +1252,7 @@ static TRBSourcesTopHeaderView *TRBEnsurePageBoundHeader(UIViewController *vc) {
         if (!iv.image) iv.image = TRBSourcesHeaderImage();
     }
 
+    header.trbPresentingController = vc;
     header.hidden = NO;
     header.alpha = 1.0;
     [vc.view bringSubviewToFront:header];
@@ -1388,13 +1583,13 @@ static void TRBSourcesHeaderEntry(void) {
             [d setDouble:0.0 forKey:@"TRB_targetX"];
         }
         if ([d objectForKey:@"TRB_targetY"] == nil) {
-            [d setDouble:-146.33333333333337 forKey:@"TRB_targetY"];
+            [d setDouble:-160.0 forKey:@"TRB_targetY"];
         }
         if ([d objectForKey:@"TRB_targetWidth"] == nil) {
             [d setDouble:390.0 forKey:@"TRB_targetWidth"];
         }
         if ([d objectForKey:@"TRB_targetHeight"] == nil) {
-            [d setDouble:844.0 forKey:@"TRB_targetHeight"];
+            [d setDouble:1200.0 forKey:@"TRB_targetHeight"];
         }
 
         obj->_targetX = [d doubleForKey:@"TRB_targetX"];
@@ -1475,8 +1670,8 @@ static BOOL TRBIsTargetAnyViewHostingView(UIView *view) {
         fabs(b.size.width - 390.0) < 12.0;
 
     BOOL tallEnough =
-        f.size.height >= 800.0 ||
-        b.size.height >= 800.0;
+        f.size.height > 900.0 ||
+        b.size.height > 900.0;
 
     BOOL yLooksRight =
         f.origin.y < -120.0 ||
@@ -1519,7 +1714,7 @@ static void TRBMarkAndForceTargetHostingView(UIView *view) {
     CGRect b = view.bounds;
     b.origin = CGPointZero;
     TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
-        b.size = CGSizeMake(390.0, 844.0);
+        b.size = CGSizeMake(cfg.targetWidth, cfg.targetHeight);
 
     if (!CGRectEqualToRect(view.bounds, b)) {
         view.bounds = b;
@@ -1527,7 +1722,14 @@ static void TRBMarkAndForceTargetHostingView(UIView *view) {
 }
 
 static CGRect TRBForcedAnyViewFrame(void) {
-    return CGRectMake(0.0, -146.33333333333337, 390.0, 844.0);
+    TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
+
+    return CGRectMake(
+        cfg.targetX,
+        cfg.targetY,
+        cfg.targetWidth,
+        cfg.targetHeight
+    );
 }
 
 static IMP TRBOrigSetFrame_v19 = NULL;
@@ -1546,7 +1748,7 @@ static void TRBSetBounds_v19(UIView *self, SEL _cmd, CGRect bounds) {
         self.accessibilityIdentifier = @"TRBSourcesMainHostingView";
         bounds.origin = CGPointZero;
         TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
-        bounds.size = CGSizeMake(390.0, 844.0);
+        bounds.size = CGSizeMake(cfg.targetWidth, cfg.targetHeight);
     }
 
     ((void(*)(id,SEL,CGRect))TRBOrigSetBounds_v19)(self, _cmd, bounds);
@@ -1572,7 +1774,7 @@ static void TRBLayout_v19(UIView *self, SEL _cmd) {
         CGRect b = self.bounds;
         b.origin = CGPointZero;
         TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
-        b.size = CGSizeMake(390.0, 844.0);
+        b.size = CGSizeMake(cfg.targetWidth, cfg.targetHeight);
 
         if (!CGRectEqualToRect(self.bounds, b)) {
             ((void(*)(id,SEL,CGRect))TRBOrigSetBounds_v19)(
@@ -1649,7 +1851,7 @@ static void TRBScanAndForceHostingViews(void) {
                     CGRect b = v.bounds;
                     b.origin = CGPointZero;
                     TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
-        b.size = CGSizeMake(390.0, 844.0);
+        b.size = CGSizeMake(cfg.targetWidth, cfg.targetHeight);
 
                     if (TRBOrigSetBounds_v19 &&
                         !CGRectEqualToRect(v.bounds, b)) {
@@ -1678,7 +1880,12 @@ static void TRBScanAndForceHostingViews(void) {
 
 static void TRBApplySavedRuntimeFrame(void) {
     TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
-    CGRect wanted = TRBForcedAnyViewFrame();
+    CGRect wanted = CGRectMake(
+        cfg.targetX,
+        cfg.targetY,
+        cfg.targetWidth,
+        cfg.targetHeight
+    );
 
     for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
         if (![scene isKindOfClass:UIWindowScene.class]) continue;
@@ -1706,7 +1913,7 @@ static void TRBApplySavedRuntimeFrame(void) {
 
                     CGRect b = v.bounds;
                     b.origin = CGPointZero;
-                    b.size = CGSizeMake(390.0, 844.0);
+                    b.size = CGSizeMake(cfg.targetWidth, cfg.targetHeight);
 
                     if (TRBOrigSetBounds_v19 &&
                         !CGRectEqualToRect(v.bounds, b)) {

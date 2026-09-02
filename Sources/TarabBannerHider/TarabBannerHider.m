@@ -763,11 +763,11 @@ static BOOL TRBHeaderInsidePlusSheet_v24(UIView *view) {
 
     if (@available(iOS 16.0, *)) {
         UISheetPresentationController *sheet = sheetVC.sheetPresentationController;
-        UISheetPresentationControllerDetentIdentifier initialID = @"TRBPlusInitialPlus20";
+        UISheetPresentationControllerDetentIdentifier initialID = @"TRBPlusInitialMinus40";
         UISheetPresentationControllerDetent *initialDetent =
             [UISheetPresentationControllerDetent customDetentWithIdentifier:initialID
                                                                    resolver:^CGFloat(id<UISheetPresentationControllerDetentResolutionContext> context) {
-                CGFloat target = (context.maximumDetentValue * 0.5) + 20.0;
+                CGFloat target = (context.maximumDetentValue * 0.5) - 40.0;
                 return MIN(target, context.maximumDetentValue - 40.0);
             }];
         sheet.detents = @[
@@ -1896,6 +1896,7 @@ static BOOL TRBIsForcedHeightChild_v20(UIView *v, CGFloat *heightOut) {
     return NO;
 }
 
+static BOOL TRBIsMKSongsTable_v26(UIView *view);
 static IMP TRBOrigSetFrame_v19 = NULL;
 
 static void TRBMarkAndForceTargetHostingView(UIView *view) {
@@ -1927,7 +1928,43 @@ static CGRect TRBForcedAnyViewFrameForView(UIView *view) {
     return f;
 }
 
+
+static BOOL TRBIsMKSongsTable_v26(UIView *view) {
+    if (![view isKindOfClass:UITableView.class]) return NO;
+
+    // Exact geometry/class from FLEX screenshot.
+    CGRect f = view.frame;
+    CGRect b = view.bounds;
+    BOOL sizeMatch =
+        ((fabs(f.size.width - 390.0) < 4.0 && fabs(f.size.height - 700.0) < 12.0) ||
+         (fabs(b.size.width - 390.0) < 4.0 && fabs(b.size.height - 700.0) < 12.0));
+
+    UIResponder *r = view;
+    while (r) {
+        if ([NSStringFromClass(r.class) isEqualToString:@"MKSongsViewController"]) {
+            return sizeMatch;
+        }
+        r = r.nextResponder;
+    }
+
+    // Fallback: UITableView dataSource itself is MKSongsViewController in FLEX.
+    if ([view isKindOfClass:UITableView.class]) {
+        id ds = ((UITableView *)view).dataSource;
+        if ([NSStringFromClass([ds class]) isEqualToString:@"MKSongsViewController"]) {
+            return sizeMatch;
+        }
+    }
+
+    return NO;
+}
+
 static void TRBSetFrame_v19(UIView *self, SEL _cmd, CGRect frame) {
+    // Highest-priority exact table fix.
+    if (TRBIsMKSongsTable_v26(self)) {
+        frame.origin.y = 200.0;
+        self.accessibilityIdentifier = @"TRBMKSongsTable_Y200";
+    }
+
     if (TRBIsTargetAnyViewHostingView(self)) {
         frame.origin.y = -147.0;
         frame.size.height = 1000.0;
@@ -1938,6 +1975,11 @@ static void TRBSetFrame_v19(UIView *self, SEL _cmd, CGRect frame) {
             frame.size.height = forcedHeight;
             self.accessibilityIdentifier = @"TRBForcedContentHeight";
         }
+    }
+
+    // Re-assert table Y after every other condition too.
+    if (TRBIsMKSongsTable_v26(self)) {
+        frame.origin.y = 200.0;
     }
 
     ((void(*)(id,SEL,CGRect))TRBOrigSetFrame_v19)(self, _cmd, frame);
@@ -1951,6 +1993,17 @@ static void TRBSetBounds_v19(UIView *self, SEL _cmd, CGRect bounds) {
 static IMP TRBOrigLayout_v19 = NULL;
 static void TRBLayout_v19(UIView *self, SEL _cmd) {
     ((void(*)(id,SEL))TRBOrigLayout_v19)(self, _cmd);
+
+    if (TRBIsMKSongsTable_v26(self)) {
+        CGRect tableFrame = self.frame;
+        if (fabs(tableFrame.origin.y - 200.0) > 0.0001) {
+            tableFrame.origin.y = 200.0;
+            ((void(*)(id,SEL,CGRect))TRBOrigSetFrame_v19)(
+                self, @selector(setFrame:), tableFrame
+            );
+        }
+        self.accessibilityIdentifier = @"TRBMKSongsTable_Y200";
+    }
 
     if (TRBIsTargetAnyViewHostingView(self)) {
         self.accessibilityIdentifier = @"TRBSourcesMainHostingView";
@@ -2132,6 +2185,19 @@ static void TRBApplySavedRuntimeFrame(void) {
                 UIView *v = stack.lastObject;
                 [stack removeLastObject];
 
+                if (TRBIsMKSongsTable_v26(v)) {
+                    v.accessibilityIdentifier = @"TRBMKSongsTable_Y200";
+                    CGRect tableWanted = v.frame;
+                    tableWanted.origin.y = 200.0;
+
+                    if (TRBOrigSetFrame_v19 &&
+                        fabs(v.frame.origin.y - 200.0) > 0.0001) {
+                        ((void(*)(id,SEL,CGRect))TRBOrigSetFrame_v19)(
+                            v, @selector(setFrame:), tableWanted
+                        );
+                    }
+                }
+
                 if (TRBIsTargetAnyViewHostingView(v)) {
                     v.accessibilityIdentifier = @"TRBSourcesMainHostingView";
 
@@ -2193,178 +2259,108 @@ static void TRBAnyViewFrameEntry_v19(void) {
 
 
 
-static BOOL TRBIsMKSongsTable_v24(UIView *view) {
-    if (![view isKindOfClass:UITableView.class]) return NO;
-    UIResponder *r = view;
-    while (r) {
-        if ([NSStringFromClass(r.class) isEqualToString:@"MKSongsViewController"]) return YES;
-        r = r.nextResponder;
-    }
-    return NO;
-}
+#pragma mark - v26 Real ProfileOverlay Native Sheet Hook
 
-static IMP TRBOrigUIViewSetFrame_v24 = NULL;
-static void TRBUIViewSetFrame_v24(UIView *self, SEL _cmd, CGRect frame) {
-    if (TRBIsMKSongsTable_v24(self)) frame.origin.y = 200.0;
-    ((void(*)(id,SEL,CGRect))TRBOrigUIViewSetFrame_v24)(self,_cmd,frame);
-}
+static IMP TRBOrigASPresent_v26 = NULL;
 
-static void TRBInstallSongsTableYForce_v24(void) {
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        Method m = class_getInstanceMethod(UIView.class, @selector(setFrame:));
-        if (!m) return;
-        TRBOrigUIViewSetFrame_v24 = method_getImplementation(m);
-        method_setImplementation(m, (IMP)TRBUIViewSetFrame_v24);
-    });
-}
-
-__attribute__((constructor))
-static void TRBSongsTableYEntry_v24(void) {
-    TRBInstallSongsTableYForce_v24();
-}
-
-
-
-
-#pragma mark - v25 Native Mohammed Alsaray profile sheet
-
-@interface UINavigationController (TRBProfileSheetClose_v25)
-- (void)trbDismissProfileSheet_v25;
-@end
-
-@implementation UINavigationController (TRBProfileSheetClose_v25)
-- (void)trbDismissProfileSheet_v25 {
-    [self dismissViewControllerAnimated:YES completion:nil];
-}
-@end
-
-static BOOL TRBViewContainsText_v25(UIView *root, NSString *needle) {
-    if (!root || needle.length == 0) return NO;
-
-    NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:root];
-    while (stack.count) {
-        UIView *v = stack.lastObject;
-        [stack removeLastObject];
-
-        NSString *text = nil;
-        if ([v isKindOfClass:UILabel.class]) {
-            text = ((UILabel *)v).text;
-        } else if ([v isKindOfClass:UIButton.class]) {
-            text = [((UIButton *)v) titleForState:UIControlStateNormal];
-        } else if ([v isKindOfClass:UITextView.class]) {
-            text = ((UITextView *)v).text;
-        }
-
-        if (text.length && [text containsString:needle]) return YES;
-        for (UIView *sub in v.subviews) [stack addObject:sub];
-    }
-    return NO;
-}
-
-static BOOL TRBLooksLikeMohammedProfile_v25(UIViewController *vc) {
+static BOOL TRBIsAlsarayProfileVC_v26(UIViewController *vc) {
     if (!vc) return NO;
-
-    NSString *className = NSStringFromClass(vc.class) ?: @"";
-    NSString *title = vc.title ?: @"";
-
-    if ([title containsString:@"محمد السراي"]) return YES;
-
-    BOOL classHint =
-        [className localizedCaseInsensitiveContainsString:@"profile"] ||
-        [className localizedCaseInsensitiveContainsString:@"developer"] ||
-        [className localizedCaseInsensitiveContainsString:@"about"];
-
-    [vc loadViewIfNeeded];
-
-    BOOL nameFound = TRBViewContainsText_v25(vc.view, @"محمد السراي");
-    return nameFound && (classHint || vc.view != nil);
+    NSString *name = NSStringFromClass(vc.class) ?: @"";
+    return [name isEqualToString:@"AlsarayProfileViewController"];
 }
 
-static BOOL TRBCurrentPageLooksLikeMore_v25(UIViewController *vc) {
-    if (!vc) return NO;
-    [vc loadViewIfNeeded];
+static void TRBConfigureAlsarayProfileSheet_v26(UIViewController *vc) {
+    if (!vc) return;
 
-    // The More page contains the Mohammed Alsaray row/card that launches profile.
-    return TRBViewContainsText_v25(vc.view, @"محمد السراي");
+    // Keep the ORIGINAL ProfileOverlay view controller and all its content.
+    vc.modalPresentationStyle = UIModalPresentationPageSheet;
+
+    if (@available(iOS 16.0, *)) {
+        UISheetPresentationController *sheet = vc.sheetPresentationController;
+        if (!sheet) return;
+
+        UISheetPresentationControllerDetentIdentifier profileID =
+            @"TRBAlsarayProfileFixed";
+
+        UISheetPresentationControllerDetent *fixed =
+            [UISheetPresentationControllerDetent customDetentWithIdentifier:profileID
+                                                                   resolver:^CGFloat(id<UISheetPresentationControllerDetentResolutionContext> context) {
+                // Fixed practical profile height. Exactly ONE detent.
+                CGFloat target = MIN(560.0, context.maximumDetentValue - 80.0);
+                return MAX(420.0, target);
+            }];
+
+        // ONE detent only => cannot drag upward into Full Screen.
+        sheet.detents = @[fixed];
+        sheet.selectedDetentIdentifier = profileID;
+        sheet.prefersGrabberVisible = YES;
+        sheet.prefersScrollingExpandsWhenScrolledToEdge = NO;
+        sheet.prefersEdgeAttachedInCompactHeight = YES;
+        sheet.widthFollowsPreferredContentSizeWhenEdgeAttached = YES;
+    } else if (@available(iOS 15.0, *)) {
+        UISheetPresentationController *sheet = vc.sheetPresentationController;
+        if (!sheet) return;
+
+        // iOS 15 fallback: only medium, no large detent.
+        sheet.detents = @[[UISheetPresentationControllerDetent mediumDetent]];
+        sheet.selectedDetentIdentifier = UISheetPresentationControllerDetentIdentifierMedium;
+        sheet.prefersGrabberVisible = YES;
+        sheet.prefersScrollingExpandsWhenScrolledToEdge = NO;
+    }
 }
 
-static IMP TRBOrigPushVC_v25 = NULL;
+static void TRBASPresent_v26(UIViewController *self,
+                             SEL _cmd,
+                             UIViewController *vc,
+                             BOOL animated,
+                             void (^completion)(void)) {
+    if (TRBIsAlsarayProfileVC_v26(vc)) {
+        TRBConfigureAlsarayProfileSheet_v26(vc);
+    }
 
-static void TRBPushVC_v25(UINavigationController *nav,
-                          SEL _cmd,
-                          UIViewController *vc,
-                          BOOL animated) {
-    UIViewController *source = nav.visibleViewController;
+    ((void(*)(id,SEL,id,BOOL,id))TRBOrigASPresent_v26)(
+        self, _cmd, vc, animated, completion
+    );
+}
 
-    if (vc &&
-        source &&
-        TRBCurrentPageLooksLikeMore_v25(source) &&
-        TRBLooksLikeMohammedProfile_v25(vc)) {
+static void TRBInstallRealProfileSheetHook_v26(void) {
+    static BOOL installed = NO;
+    if (installed) return;
 
-        // Use the ORIGINAL profile VC/content, only replace navigation style.
-        UINavigationController *sheetNav =
-            [[UINavigationController alloc] initWithRootViewController:vc];
-        sheetNav.modalPresentationStyle = UIModalPresentationPageSheet;
+    SEL sel = NSSelectorFromString(@"as_presentViewController:animated:completion:");
+    Method m = class_getInstanceMethod(UIViewController.class, sel);
+    if (!m) return; // ProfileOverlay may not be ready yet; retry timer handles it.
 
-        if (@available(iOS 16.0, *)) {
-            UISheetPresentationController *sheet = sheetNav.sheetPresentationController;
-
-            UISheetPresentationControllerDetentIdentifier profileID =
-                @"TRBMohammedProfileFixed";
-
-            UISheetPresentationControllerDetent *profileDetent =
-                [UISheetPresentationControllerDetent customDetentWithIdentifier:profileID
-                                                                       resolver:^CGFloat(id<UISheetPresentationControllerDetentResolutionContext> context) {
-                    CGFloat target = (context.maximumDetentValue * 0.5) + 20.0;
-                    return MIN(target, context.maximumDetentValue - 40.0);
-                }];
-
-            // ONE detent only: user cannot drag this profile sheet to Full Screen.
-            sheet.detents = @[profileDetent];
-            sheet.selectedDetentIdentifier = profileID;
-            sheet.prefersGrabberVisible = YES;
-            sheet.prefersScrollingExpandsWhenScrolledToEdge = NO;
-            sheet.prefersEdgeAttachedInCompactHeight = YES;
-        } else if (@available(iOS 15.0, *)) {
-            UISheetPresentationController *sheet = sheetNav.sheetPresentationController;
-            sheet.detents = @[[UISheetPresentationControllerDetent mediumDetent]];
-            sheet.selectedDetentIdentifier = UISheetPresentationControllerDetentIdentifierMedium;
-            sheet.prefersGrabberVisible = YES;
-            sheet.prefersScrollingExpandsWhenScrolledToEdge = NO;
-        }
-
-        // Add a native close button only if the original page does not already have one.
-        if (!vc.navigationItem.leftBarButtonItem) {
-            vc.navigationItem.leftBarButtonItem =
-                [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemClose
-                                                             target:sheetNav
-                                                             action:@selector(trbDismissProfileSheet_v25)];
-        }
-
-        [source presentViewController:sheetNav animated:YES completion:nil];
+    IMP current = method_getImplementation(m);
+    if (current == (IMP)TRBASPresent_v26) {
+        installed = YES;
         return;
     }
 
-    ((void(*)(id,SEL,id,BOOL))TRBOrigPushVC_v25)(nav, _cmd, vc, animated);
-}
-
-static void TRBInstallProfileSheetHook_v25(void) {
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        Method m = class_getInstanceMethod(UINavigationController.class,
-                                           @selector(pushViewController:animated:));
-        if (!m) return;
-
-        TRBOrigPushVC_v25 = method_getImplementation(m);
-        method_setImplementation(m, (IMP)TRBPushVC_v25);
-    });
+    TRBOrigASPresent_v26 = current;
+    method_setImplementation(m, (IMP)TRBASPresent_v26);
+    installed = YES;
 }
 
 __attribute__((constructor))
-static void TRBProfileSheetEntry_v25(void) {
+static void TRBRealProfileSheetEntry_v26(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
-        TRBInstallProfileSheetHook_v25();
+        // ProfileOverlay installs its category in +load. Install now and retry briefly
+        // so this always runs AFTER its selector alias exists.
+        TRBInstallRealProfileSheetHook_v26();
+
+        __block NSInteger attempts = 0;
+        [NSTimer scheduledTimerWithTimeInterval:0.25
+                                         repeats:YES
+                                           block:^(NSTimer *timer) {
+            TRBInstallRealProfileSheetHook_v26();
+            attempts++;
+            if (attempts >= 12 ||
+                class_getInstanceMethod(UIViewController.class,
+                    NSSelectorFromString(@"as_presentViewController:animated:completion:"))) {
+                [timer invalidate];
+            }
+        }];
     });
 }
 

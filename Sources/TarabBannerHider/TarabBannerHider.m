@@ -1388,13 +1388,13 @@ static void TRBSourcesHeaderEntry(void) {
             [d setDouble:0.0 forKey:@"TRB_targetX"];
         }
         if ([d objectForKey:@"TRB_targetY"] == nil) {
-            [d setDouble:-160.0 forKey:@"TRB_targetY"];
+            [d setDouble:-146.33333333333337 forKey:@"TRB_targetY"];
         }
         if ([d objectForKey:@"TRB_targetWidth"] == nil) {
             [d setDouble:390.0 forKey:@"TRB_targetWidth"];
         }
         if ([d objectForKey:@"TRB_targetHeight"] == nil) {
-            [d setDouble:1200.0 forKey:@"TRB_targetHeight"];
+            [d setDouble:844.0 forKey:@"TRB_targetHeight"];
         }
 
         obj->_targetX = [d doubleForKey:@"TRB_targetX"];
@@ -1424,29 +1424,6 @@ static void TRBSourcesHeaderEntry(void) {
 - (void)setTargetHeight:(CGFloat)value {
     _targetHeight = value;
     [NSUserDefaults.standardUserDefaults setDouble:value forKey:@"TRB_targetHeight"];
-}
-
-
-- (void)trbPersistCurrentValues {
-    NSUserDefaults *d = NSUserDefaults.standardUserDefaults;
-
-    double sx = [d doubleForKey:@"TRB_targetX"];
-    double sy = [d doubleForKey:@"TRB_targetY"];
-    double sw = [d doubleForKey:@"TRB_targetWidth"];
-    double sh = [d doubleForKey:@"TRB_targetHeight"];
-
-    if (fabs(sx - self.targetX) > 0.0001) {
-        [d setDouble:self.targetX forKey:@"TRB_targetX"];
-    }
-    if (fabs(sy - self.targetY) > 0.0001) {
-        [d setDouble:self.targetY forKey:@"TRB_targetY"];
-    }
-    if (fabs(sw - self.targetWidth) > 0.0001) {
-        [d setDouble:self.targetWidth forKey:@"TRB_targetWidth"];
-    }
-    if (fabs(sh - self.targetHeight) > 0.0001) {
-        [d setDouble:self.targetHeight forKey:@"TRB_targetHeight"];
-    }
 }
 
 @end
@@ -1498,8 +1475,8 @@ static BOOL TRBIsTargetAnyViewHostingView(UIView *view) {
         fabs(b.size.width - 390.0) < 12.0;
 
     BOOL tallEnough =
-        f.size.height > 900.0 ||
-        b.size.height > 900.0;
+        f.size.height >= 800.0 ||
+        b.size.height >= 800.0;
 
     BOOL yLooksRight =
         f.origin.y < -120.0 ||
@@ -1542,7 +1519,7 @@ static void TRBMarkAndForceTargetHostingView(UIView *view) {
     CGRect b = view.bounds;
     b.origin = CGPointZero;
     TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
-        b.size = CGSizeMake(cfg.targetWidth, cfg.targetHeight);
+        b.size = CGSizeMake(390.0, 844.0);
 
     if (!CGRectEqualToRect(view.bounds, b)) {
         view.bounds = b;
@@ -1550,14 +1527,7 @@ static void TRBMarkAndForceTargetHostingView(UIView *view) {
 }
 
 static CGRect TRBForcedAnyViewFrame(void) {
-    TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
-
-    return CGRectMake(
-        cfg.targetX,
-        cfg.targetY,
-        cfg.targetWidth,
-        cfg.targetHeight
-    );
+    return CGRectMake(0.0, -146.33333333333337, 390.0, 844.0);
 }
 
 static IMP TRBOrigSetFrame_v19 = NULL;
@@ -1576,7 +1546,7 @@ static void TRBSetBounds_v19(UIView *self, SEL _cmd, CGRect bounds) {
         self.accessibilityIdentifier = @"TRBSourcesMainHostingView";
         bounds.origin = CGPointZero;
         TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
-        bounds.size = CGSizeMake(cfg.targetWidth, cfg.targetHeight);
+        bounds.size = CGSizeMake(390.0, 844.0);
     }
 
     ((void(*)(id,SEL,CGRect))TRBOrigSetBounds_v19)(self, _cmd, bounds);
@@ -1602,7 +1572,7 @@ static void TRBLayout_v19(UIView *self, SEL _cmd) {
         CGRect b = self.bounds;
         b.origin = CGPointZero;
         TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
-        b.size = CGSizeMake(cfg.targetWidth, cfg.targetHeight);
+        b.size = CGSizeMake(390.0, 844.0);
 
         if (!CGRectEqualToRect(self.bounds, b)) {
             ((void(*)(id,SEL,CGRect))TRBOrigSetBounds_v19)(
@@ -1642,7 +1612,6 @@ static void TRBInstallAnyViewFrameForce_v19(void) {
 
 
 static void TRBScanAndForceHostingViews(void) {
-    [[TRBRuntimeSettings shared] trbPersistCurrentValues];
     for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
         if (![scene isKindOfClass:UIWindowScene.class]) continue;
 
@@ -1680,7 +1649,7 @@ static void TRBScanAndForceHostingViews(void) {
                     CGRect b = v.bounds;
                     b.origin = CGPointZero;
                     TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
-        b.size = CGSizeMake(cfg.targetWidth, cfg.targetHeight);
+        b.size = CGSizeMake(390.0, 844.0);
 
                     if (TRBOrigSetBounds_v19 &&
                         !CGRectEqualToRect(v.bounds, b)) {
@@ -1709,16 +1678,7 @@ static void TRBScanAndForceHostingViews(void) {
 
 static void TRBApplySavedRuntimeFrame(void) {
     TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
-
-    // FLEX may edit ivars directly and bypass Objective-C setters.
-    // Persist current in-memory values on every pass.
-    [cfg trbPersistCurrentValues];
-    CGRect wanted = CGRectMake(
-        cfg.targetX,
-        cfg.targetY,
-        cfg.targetWidth,
-        cfg.targetHeight
-    );
+    CGRect wanted = TRBForcedAnyViewFrame();
 
     for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
         if (![scene isKindOfClass:UIWindowScene.class]) continue;
@@ -1746,7 +1706,7 @@ static void TRBApplySavedRuntimeFrame(void) {
 
                     CGRect b = v.bounds;
                     b.origin = CGPointZero;
-                    b.size = CGSizeMake(cfg.targetWidth, cfg.targetHeight);
+                    b.size = CGSizeMake(390.0, 844.0);
 
                     if (TRBOrigSetBounds_v19 &&
                         !CGRectEqualToRect(v.bounds, b)) {

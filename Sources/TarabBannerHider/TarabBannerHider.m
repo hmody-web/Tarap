@@ -1670,8 +1670,8 @@ static BOOL TRBIsTargetAnyViewHostingView(UIView *view) {
         fabs(b.size.width - 390.0) < 12.0;
 
     BOOL tallEnough =
-        f.size.height > 900.0 ||
-        b.size.height > 900.0;
+        f.size.height >= 800.0 ||
+        b.size.height >= 800.0;
 
     BOOL yLooksRight =
         f.origin.y < -120.0 ||
@@ -1698,44 +1698,39 @@ static BOOL TRBIsTargetAnyViewHostingView(UIView *view) {
     return hostingName && widthMatch && tallEnough && yLooksRight;
 }
 
-static CGRect TRBForcedAnyViewFrame(void);
+static CGRect TRBForcedAnyViewFrameForView(UIView *view);
 
 static void TRBMarkAndForceTargetHostingView(UIView *view) {
     if (!TRBIsTargetAnyViewHostingView(view)) return;
 
     view.accessibilityIdentifier = @"TRBSourcesMainHostingView";
 
-    CGRect wanted = TRBForcedAnyViewFrame();
+    CGRect wanted = view.frame;
+    wanted.origin.y = -147.0;
 
-    if (!CGRectEqualToRect(view.frame, wanted)) {
-        view.frame = wanted;
-    }
-
-    CGRect b = view.bounds;
-    b.origin = CGPointZero;
-    TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
-        b.size = CGSizeMake(cfg.targetWidth, cfg.targetHeight);
-
-    if (!CGRectEqualToRect(view.bounds, b)) {
-        view.bounds = b;
+    if (fabs(view.frame.origin.y - (-147.0)) > 0.0001) {
+        if (TRBOrigSetFrame_v19) {
+            ((void(*)(id,SEL,CGRect))TRBOrigSetFrame_v19)(
+                view,
+                @selector(setFrame:),
+                wanted
+            );
+        } else {
+            view.frame = wanted;
+        }
     }
 }
 
-static CGRect TRBForcedAnyViewFrame(void) {
-    TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
-
-    return CGRectMake(
-        cfg.targetX,
-        -147.0,
-        cfg.targetWidth,
-        cfg.targetHeight
-    );
+static CGRect TRBForcedAnyViewFrameForView(UIView *view) {
+    CGRect f = view.frame;
+    f.origin.y = -147.0;
+    return f;
 }
 
 static IMP TRBOrigSetFrame_v19 = NULL;
 static void TRBSetFrame_v19(UIView *self, SEL _cmd, CGRect frame) {
     if (TRBIsTargetAnyViewHostingView(self)) {
-        frame = TRBForcedAnyViewFrame();
+        frame.origin.y = -147.0;
         self.accessibilityIdentifier = @"TRBSourcesMainHostingView";
     }
 
@@ -1744,13 +1739,6 @@ static void TRBSetFrame_v19(UIView *self, SEL _cmd, CGRect frame) {
 
 static IMP TRBOrigSetBounds_v19 = NULL;
 static void TRBSetBounds_v19(UIView *self, SEL _cmd, CGRect bounds) {
-    if (TRBIsTargetAnyViewHostingView(self)) {
-        self.accessibilityIdentifier = @"TRBSourcesMainHostingView";
-        bounds.origin = CGPointZero;
-        TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
-        bounds.size = CGSizeMake(cfg.targetWidth, cfg.targetHeight);
-    }
-
     ((void(*)(id,SEL,CGRect))TRBOrigSetBounds_v19)(self, _cmd, bounds);
 }
 
@@ -1761,26 +1749,14 @@ static void TRBLayout_v19(UIView *self, SEL _cmd) {
     if (TRBIsTargetAnyViewHostingView(self)) {
         self.accessibilityIdentifier = @"TRBSourcesMainHostingView";
 
-        CGRect wanted = TRBForcedAnyViewFrame();
+        CGRect wanted = self.frame;
+        wanted.origin.y = -147.0;
 
-        if (!CGRectEqualToRect(self.frame, wanted)) {
+        if (fabs(self.frame.origin.y - (-147.0)) > 0.0001) {
             ((void(*)(id,SEL,CGRect))TRBOrigSetFrame_v19)(
                 self,
                 @selector(setFrame:),
                 wanted
-            );
-        }
-
-        CGRect b = self.bounds;
-        b.origin = CGPointZero;
-        TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
-        b.size = CGSizeMake(cfg.targetWidth, cfg.targetHeight);
-
-        if (!CGRectEqualToRect(self.bounds, b)) {
-            ((void(*)(id,SEL,CGRect))TRBOrigSetBounds_v19)(
-                self,
-                @selector(setBounds:),
-                b
             );
         }
     }
@@ -1829,44 +1805,17 @@ static void TRBScanAndForceHostingViews(void) {
                 if (TRBIsTargetAnyViewHostingView(v)) {
                     v.accessibilityIdentifier = @"TRBSourcesMainHostingView";
 
-                    // Also mark a large direct child if SwiftUI wraps the actual content.
-                    for (UIView *sub in v.subviews) {
-                        if (sub.bounds.size.width > 370.0 &&
-                            sub.bounds.size.height > 900.0) {
-                            sub.accessibilityIdentifier = @"TRBSourcesMainHostingContent";
-                        }
-                    }
-
-                    CGRect wanted = TRBForcedAnyViewFrame();
+                    CGRect wanted = v.frame;
+                    wanted.origin.y = -147.0;
 
                     if (TRBOrigSetFrame_v19 &&
-                        !CGRectEqualToRect(v.frame, wanted)) {
+                        fabs(v.frame.origin.y - (-147.0)) > 0.0001) {
                         ((void(*)(id,SEL,CGRect))TRBOrigSetFrame_v19)(
                             v,
                             @selector(setFrame:),
                             wanted
                         );
                     }
-
-                    CGRect b = v.bounds;
-                    b.origin = CGPointZero;
-                    TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
-        b.size = CGSizeMake(cfg.targetWidth, cfg.targetHeight);
-
-                    if (TRBOrigSetBounds_v19 &&
-                        !CGRectEqualToRect(v.bounds, b)) {
-                        ((void(*)(id,SEL,CGRect))TRBOrigSetBounds_v19)(
-                            v,
-                            @selector(setBounds:),
-                            b
-                        );
-                    }
-
-                    UIViewController *vc = TRBNearestViewControllerForView(v);
-                    NSLog(@"[TarabBannerHider] TAGGED HOST %@ VC %@ frame %@",
-                          NSStringFromClass(v.class),
-                          NSStringFromClass(vc.class),
-                          NSStringFromCGRect(v.frame));
                 }
 
                 for (UIView *sub in v.subviews) {
@@ -1877,16 +1826,7 @@ static void TRBScanAndForceHostingViews(void) {
     }
 }
 
-
 static void TRBApplySavedRuntimeFrame(void) {
-    TRBRuntimeSettings *cfg = [TRBRuntimeSettings shared];
-    CGRect wanted = CGRectMake(
-        cfg.targetX,
-        -147.0,
-        cfg.targetWidth,
-        cfg.targetHeight
-    );
-
     for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
         if (![scene isKindOfClass:UIWindowScene.class]) continue;
 
@@ -1902,25 +1842,15 @@ static void TRBApplySavedRuntimeFrame(void) {
                 if (TRBIsTargetAnyViewHostingView(v)) {
                     v.accessibilityIdentifier = @"TRBSourcesMainHostingView";
 
+                    CGRect wanted = v.frame;
+                    wanted.origin.y = -147.0;
+
                     if (TRBOrigSetFrame_v19 &&
-                        !CGRectEqualToRect(v.frame, wanted)) {
+                        fabs(v.frame.origin.y - (-147.0)) > 0.0001) {
                         ((void(*)(id,SEL,CGRect))TRBOrigSetFrame_v19)(
                             v,
                             @selector(setFrame:),
                             wanted
-                        );
-                    }
-
-                    CGRect b = v.bounds;
-                    b.origin = CGPointZero;
-                    b.size = CGSizeMake(cfg.targetWidth, cfg.targetHeight);
-
-                    if (TRBOrigSetBounds_v19 &&
-                        !CGRectEqualToRect(v.bounds, b)) {
-                        ((void(*)(id,SEL,CGRect))TRBOrigSetBounds_v19)(
-                            v,
-                            @selector(setBounds:),
-                            b
                         );
                     }
                 }

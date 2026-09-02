@@ -477,6 +477,8 @@ static void TRBDotsCoverEntry_v14(void) {
 
 
 
+static BOOL TRBTarabPlusSheetOpen_v22 = NO;
+
 __attribute__((objc_runtime_name("TRBSourcesTopHeaderView")))
 @interface TRBSourcesTopHeaderView : UIVisualEffectView
 @property(nonatomic, weak) UIViewController *trbPresentingController;
@@ -632,6 +634,12 @@ static UIImage *TRBSourcesHeaderImage(void);
     }];
 }
 
+
+- (void)viewDidDisappear:(BOOL)animated {
+    [super viewDidDisappear:animated];
+    TRBTarabPlusSheetOpen_v22 = NO;
+}
+
 - (void)trbOpenTelegram:(UIButton *)sender {
     NSURL *url = [NSURL URLWithString:@"https://t.me/Mooo5"];
     if (!url) return;
@@ -664,6 +672,14 @@ static UIImage *TRBSourcesHeaderImage(void);
         sheet.prefersGrabberVisible = YES;
         sheet.prefersScrollingExpandsWhenScrolledToEdge = YES;
     }
+
+    // Hide the exact tapped top bar BEFORE the sheet transition begins.
+    // This prevents it from being composited above/inside the page sheet.
+    TRBTarabPlusSheetOpen_v22 = YES;
+    self.hidden = YES;
+    self.alpha = 0.0;
+    self.userInteractionEnabled = NO;
+    self.layer.opacity = 0.0f;
 
     [presenter presentViewController:sheetVC animated:YES completion:nil];
 }
@@ -1231,7 +1247,7 @@ static TRBSourcesTopHeaderView *TRBEnsurePageBoundHeader(UIViewController *vc) {
     CGFloat side = 12.0;
     CGFloat y = 192.0;
     CGFloat width = MAX(0.0, vc.view.bounds.size.width - 24.0);
-    CGFloat height = 82.0;
+    CGFloat height = 70.0;
 
     header.frame = CGRectMake(side, y, width, height);
     header.layer.cornerRadius = 26.0;
@@ -1253,9 +1269,20 @@ static TRBSourcesTopHeaderView *TRBEnsurePageBoundHeader(UIViewController *vc) {
     }
 
     header.trbPresentingController = vc;
-    header.hidden = NO;
-    header.alpha = 1.0;
-    [vc.view bringSubviewToFront:header];
+
+    if (TRBTarabPlusSheetOpen_v22) {
+        header.hidden = YES;
+        header.alpha = 0.0;
+        header.userInteractionEnabled = NO;
+        header.layer.opacity = 0.0f;
+    } else {
+        header.transform = CGAffineTransformIdentity;
+        header.layer.opacity = 1.0f;
+        header.hidden = NO;
+        header.alpha = 1.0;
+        header.userInteractionEnabled = YES;
+        [vc.view bringSubviewToFront:header];
+    }
 
     return header;
 }
@@ -1287,10 +1314,20 @@ static void TRBRefreshGlobalGlassHeader(UIWindow *window) {
             TRBEnsurePageBoundHeader(visible);
 
         if (header) {
-            header.hidden = NO;
-            header.alpha = 1.0;
             header.layer.zPosition = 99999999.0;
-            [visible.view bringSubviewToFront:header];
+
+            if (TRBTarabPlusSheetOpen_v22) {
+                header.hidden = YES;
+                header.alpha = 0.0;
+                header.userInteractionEnabled = NO;
+                header.layer.opacity = 0.0f;
+            } else {
+                header.layer.opacity = 1.0f;
+                header.hidden = NO;
+                header.alpha = 1.0;
+                header.userInteractionEnabled = YES;
+                [visible.view bringSubviewToFront:header];
+            }
         }
     }
 
@@ -1915,6 +1952,7 @@ static void TRBSetCustomTopHeaderHidden_v20(BOOL hidden) {
                 BOOL isOurExactHeader =
                     [aid isEqualToString:@"TRBTopHeader"] ||
                     [aid isEqualToString:@"TRBSourcesTopHeader"] ||
+                    [aid isEqualToString:@"TRBSourcesTopHeaderView"] ||
                     [aid isEqualToString:@"TRBNativeGlassHeader"] ||
                     [aid isEqualToString:@"TRBOriginalTopHeader"];
 

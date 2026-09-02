@@ -1918,7 +1918,14 @@ static void TRBSetCustomTopHeaderHidden_v20(BOOL hidden) {
                     [aid isEqualToString:@"TRBNativeGlassHeader"] ||
                     [aid isEqualToString:@"TRBOriginalTopHeader"];
 
-                if (isOurExactHeader) {
+                CGRect hf = v.frame;
+                BOOL isOurHeaderByGeometry =
+                    (fabs(hf.origin.y - 192.0) < 4.0 &&
+                     fabs(hf.size.height - 70.0) < 5.0 &&
+                     hf.size.width > 250.0 &&
+                     [aid containsString:@"TRB"]);
+
+                if (isOurExactHeader || isOurHeaderByGeometry) {
                     v.hidden = hidden;
                     v.alpha = hidden ? 0.0 : 1.0;
                     v.userInteractionEnabled = !hidden;

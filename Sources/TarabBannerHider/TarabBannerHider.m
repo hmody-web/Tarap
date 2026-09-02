@@ -1894,8 +1894,45 @@ static void TRBScanAndForceHostingViews(void) {
     }
 }
 
+static void TRBSetCustomTopHeaderHidden_v20(BOOL hidden) {
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class]) continue;
+        for (UIWindow *w in ((UIWindowScene *)scene).windows) {
+            NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:w];
+            while (stack.count) {
+                UIView *v = stack.lastObject;
+                [stack removeLastObject];
+                NSString *aid = v.accessibilityIdentifier ?: @"";
+                if ([aid isEqualToString:@"TRBSourcesTopHeaderView"] ||
+                    [aid containsString:@"TRBTopHeader"] ||
+                    [aid containsString:@"TRBGlassHeader"]) {
+                    v.hidden = hidden;
+                }
+                for (UIView *sub in v.subviews) [stack addObject:sub];
+            }
+        }
+    }
+}
+
+static BOOL TRBIsTarabPlusSheetPresented_v20(void) {
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class]) continue;
+        for (UIWindow *w in ((UIWindowScene *)scene).windows) {
+            UIViewController *vc = w.rootViewController;
+            while (vc.presentedViewController) {
+                vc = vc.presentedViewController;
+                if (vc.sheetPresentationController != nil) {
+                    return YES;
+                }
+            }
+        }
+    }
+    return NO;
+}
+
 static void TRBApplySavedRuntimeFrame(void) {
-    if (!TRBIsTarabPlusSheetPresented_v20()) { TRBSetCustomTopHeaderHidden_v20(NO); }
+    BOOL sheetVisible = TRBIsTarabPlusSheetPresented_v20();
+    TRBSetCustomTopHeaderHidden_v20(sheetVisible);
     for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
         if (![scene isKindOfClass:UIWindowScene.class]) continue;
 

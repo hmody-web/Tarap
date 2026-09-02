@@ -1699,6 +1699,7 @@ static BOOL TRBIsTargetAnyViewHostingView(UIView *view) {
 }
 
 static CGRect TRBForcedAnyViewFrameForView(UIView *view);
+static IMP TRBOrigSetFrame_v19 = NULL;
 
 static void TRBMarkAndForceTargetHostingView(UIView *view) {
     if (!TRBIsTargetAnyViewHostingView(view)) return;
@@ -1727,7 +1728,6 @@ static CGRect TRBForcedAnyViewFrameForView(UIView *view) {
     return f;
 }
 
-static IMP TRBOrigSetFrame_v19 = NULL;
 static void TRBSetFrame_v19(UIView *self, SEL _cmd, CGRect frame) {
     if (TRBIsTargetAnyViewHostingView(self)) {
         frame.origin.y = -147.0;

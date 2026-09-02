@@ -712,7 +712,43 @@ static UIImage *TRBSourcesHeaderImage(void);
 
 @end
 
+
+static BOOL TRBHeaderInsidePlusSheet_v24(UIView *view) {
+    UIResponder *r = view;
+    while (r) {
+        if ([NSStringFromClass(r.class) isEqualToString:@"TRBPlusSheetViewController"]) return YES;
+        r = r.nextResponder;
+    }
+    return NO;
+}
+
 @implementation TRBSourcesTopHeaderView
+
+- (void)didMoveToWindow {
+    [super didMoveToWindow];
+    if (TRBHeaderInsidePlusSheet_v24(self)) {
+        [super setHidden:YES];
+        [super setAlpha:0.0];
+        self.userInteractionEnabled = NO;
+        self.layer.opacity = 0.0f;
+    }
+}
+- (void)didMoveToSuperview {
+    [super didMoveToSuperview];
+    if (TRBHeaderInsidePlusSheet_v24(self)) {
+        [super setHidden:YES];
+        [super setAlpha:0.0];
+        self.userInteractionEnabled = NO;
+        self.layer.opacity = 0.0f;
+    }
+}
+- (void)setHidden:(BOOL)hidden {
+    [super setHidden:TRBHeaderInsidePlusSheet_v24(self) ? YES : hidden];
+}
+- (void)setAlpha:(CGFloat)alpha {
+    [super setAlpha:TRBHeaderInsidePlusSheet_v24(self) ? 0.0 : alpha];
+}
+
 
 - (void)trbHandleTap:(UITapGestureRecognizer *)tap {
     if (tap.state != UIGestureRecognizerStateEnded) return;
@@ -2135,3 +2171,37 @@ static void TRBAnyViewFrameEntry_v19(void) {
         }];
     });
 }
+
+
+
+static BOOL TRBIsMKSongsTable_v24(UIView *view) {
+    if (![view isKindOfClass:UITableView.class]) return NO;
+    UIResponder *r = view;
+    while (r) {
+        if ([NSStringFromClass(r.class) isEqualToString:@"MKSongsViewController"]) return YES;
+        r = r.nextResponder;
+    }
+    return NO;
+}
+
+static IMP TRBOrigUIViewSetFrame_v24 = NULL;
+static void TRBUIViewSetFrame_v24(UIView *self, SEL _cmd, CGRect frame) {
+    if (TRBIsMKSongsTable_v24(self)) frame.origin.y = 200.0;
+    ((void(*)(id,SEL,CGRect))TRBOrigUIViewSetFrame_v24)(self,_cmd,frame);
+}
+
+static void TRBInstallSongsTableYForce_v24(void) {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        Method m = class_getInstanceMethod(UIView.class, @selector(setFrame:));
+        if (!m) return;
+        TRBOrigUIViewSetFrame_v24 = method_getImplementation(m);
+        method_setImplementation(m, (IMP)TRBUIViewSetFrame_v24);
+    });
+}
+
+__attribute__((constructor))
+static void TRBSongsTableYEntry_v24(void) {
+    TRBInstallSongsTableYForce_v24();
+}
+

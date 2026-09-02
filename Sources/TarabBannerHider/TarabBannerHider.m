@@ -1723,7 +1723,15 @@ static BOOL TRBIsForcedHeightChild_v20(UIView *v, CGFloat *heightOut) {
           (fabs(b.size.width - 358.0) < 3.0 && fabs(b.size.height - 340.0) < 8.0) ||
           fabs(f.size.height - 600.0) < 8.0 || fabs(b.size.height - 600.0) < 8.0));
 
-    if (inherited450 || list340) {
+    // FLEX: SwiftUI.UpdateCoalescingCollectionView 358x450 -> permanently force 600.
+    BOOL updateCoalescing450 =
+        ([cn containsString:@"UpdateCoalescingCollectionView"] &&
+         ((fabs(f.size.width - 358.0) < 3.0 &&
+           (fabs(f.size.height - 450.0) < 8.0 || fabs(f.size.height - 600.0) < 8.0)) ||
+          (fabs(b.size.width - 358.0) < 3.0 &&
+           (fabs(b.size.height - 450.0) < 8.0 || fabs(b.size.height - 600.0) < 8.0))));
+
+    if (inherited450 || list340 || updateCoalescing450) {
         if (heightOut) *heightOut = 600.0;
         return YES;
     }
@@ -1902,12 +1910,21 @@ static void TRBSetCustomTopHeaderHidden_v20(BOOL hidden) {
             while (stack.count) {
                 UIView *v = stack.lastObject;
                 [stack removeLastObject];
+
                 NSString *aid = v.accessibilityIdentifier ?: @"";
-                if ([aid isEqualToString:@"TRBSourcesTopHeaderView"] ||
-                    [aid containsString:@"TRBTopHeader"] ||
-                    [aid containsString:@"TRBGlassHeader"]) {
+                BOOL isOurExactHeader =
+                    [aid isEqualToString:@"TRBTopHeader"] ||
+                    [aid isEqualToString:@"TRBSourcesTopHeader"] ||
+                    [aid isEqualToString:@"TRBNativeGlassHeader"] ||
+                    [aid isEqualToString:@"TRBOriginalTopHeader"];
+
+                if (isOurExactHeader) {
                     v.hidden = hidden;
+                    v.alpha = hidden ? 0.0 : 1.0;
+                    v.userInteractionEnabled = !hidden;
+                    continue;
                 }
+
                 for (UIView *sub in v.subviews) [stack addObject:sub];
             }
         }
@@ -1931,8 +1948,12 @@ static BOOL TRBIsTarabPlusSheetPresented_v20(void) {
 }
 
 static void TRBApplySavedRuntimeFrame(void) {
+    static BOOL trbHadSheet_v21 = NO;
     BOOL sheetVisible = TRBIsTarabPlusSheetPresented_v20();
-    TRBSetCustomTopHeaderHidden_v20(sheetVisible);
+    if (sheetVisible != trbHadSheet_v21) {
+        TRBSetCustomTopHeaderHidden_v20(sheetVisible);
+        trbHadSheet_v21 = sheetVisible;
+    }
     for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
         if (![scene isKindOfClass:UIWindowScene.class]) continue;
 

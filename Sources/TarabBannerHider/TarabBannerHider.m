@@ -478,6 +478,69 @@ static void TRBDotsCoverEntry_v14(void) {
 
 
 static BOOL TRBTarabPlusSheetOpen_v22 = NO;
+static __weak UIView *TRBPinnedHeader_v23 = nil;
+static __weak UIView *TRBPinnedHeaderOriginalSuperview_v23 = nil;
+static CGRect TRBPinnedHeaderOriginalFrame_v23;
+static NSInteger TRBPinnedHeaderOriginalIndex_v23 = NSNotFound;
+
+static void TRBPinHeaderBehindSheet_v23(UIView *header) {
+    if (!header || TRBPinnedHeader_v23) return;
+
+    UIWindow *window = header.window;
+    UIView *superview = header.superview;
+    if (!window || !superview) return;
+
+    TRBPinnedHeader_v23 = header;
+    TRBPinnedHeaderOriginalSuperview_v23 = superview;
+    TRBPinnedHeaderOriginalFrame_v23 = header.frame;
+    TRBPinnedHeaderOriginalIndex_v23 = [superview.subviews indexOfObject:header];
+
+    CGRect windowFrame = [superview convertRect:header.frame toView:window];
+
+    [header removeFromSuperview];
+    [window addSubview:header];
+    header.frame = windowFrame;
+
+    header.hidden = NO;
+    header.alpha = 1.0;
+    header.layer.opacity = 1.0f;
+    header.userInteractionEnabled = NO;
+
+    // Keep it fixed at the top of the source screen.
+    // The presented sheet is added above it by UIKit, so it won't travel inside the sheet.
+}
+
+static void TRBRestorePinnedHeader_v23(void) {
+    UIView *header = TRBPinnedHeader_v23;
+    UIView *superview = TRBPinnedHeaderOriginalSuperview_v23;
+    if (!header || !superview) {
+        TRBPinnedHeader_v23 = nil;
+        TRBPinnedHeaderOriginalSuperview_v23 = nil;
+        TRBPinnedHeaderOriginalIndex_v23 = NSNotFound;
+        return;
+    }
+
+    [header removeFromSuperview];
+
+    NSUInteger count = superview.subviews.count;
+    if (TRBPinnedHeaderOriginalIndex_v23 != NSNotFound &&
+        TRBPinnedHeaderOriginalIndex_v23 <= (NSInteger)count) {
+        [superview insertSubview:header atIndex:(NSUInteger)MIN(TRBPinnedHeaderOriginalIndex_v23, (NSInteger)count)];
+    } else {
+        [superview addSubview:header];
+    }
+
+    header.frame = TRBPinnedHeaderOriginalFrame_v23;
+    header.hidden = NO;
+    header.alpha = 1.0;
+    header.layer.opacity = 1.0f;
+    header.userInteractionEnabled = YES;
+
+    TRBPinnedHeader_v23 = nil;
+    TRBPinnedHeaderOriginalSuperview_v23 = nil;
+    TRBPinnedHeaderOriginalIndex_v23 = NSNotFound;
+}
+
 
 __attribute__((objc_runtime_name("TRBSourcesTopHeaderView")))
 @interface TRBSourcesTopHeaderView : UIVisualEffectView
@@ -638,6 +701,7 @@ static UIImage *TRBSourcesHeaderImage(void);
 - (void)viewDidDisappear:(BOOL)animated {
     [super viewDidDisappear:animated];
     TRBTarabPlusSheetOpen_v22 = NO;
+    TRBRestorePinnedHeader_v23();
 }
 
 - (void)trbOpenTelegram:(UIButton *)sender {
@@ -673,13 +737,10 @@ static UIImage *TRBSourcesHeaderImage(void);
         sheet.prefersScrollingExpandsWhenScrolledToEdge = YES;
     }
 
-    // Hide the exact tapped top bar BEFORE the sheet transition begins.
-    // This prevents it from being composited above/inside the page sheet.
+    // Keep the real top bar visible in its original screen position,
+    // but detach it from the page so it cannot move into the presented sheet.
     TRBTarabPlusSheetOpen_v22 = YES;
-    self.hidden = YES;
-    self.alpha = 0.0;
-    self.userInteractionEnabled = NO;
-    self.layer.opacity = 0.0f;
+    TRBPinHeaderBehindSheet_v23(self);
 
     [presenter presentViewController:sheetVC animated:YES completion:nil];
 }
@@ -1271,10 +1332,13 @@ static TRBSourcesTopHeaderView *TRBEnsurePageBoundHeader(UIViewController *vc) {
     header.trbPresentingController = vc;
 
     if (TRBTarabPlusSheetOpen_v22) {
-        header.hidden = YES;
-        header.alpha = 0.0;
-        header.userInteractionEnabled = NO;
-        header.layer.opacity = 0.0f;
+        // The real header is temporarily pinned to UIWindow.
+        // Do not hide, recreate, or move it while the sheet is active.
+        if (TRBPinnedHeader_v23) {
+            TRBPinnedHeader_v23.hidden = NO;
+            TRBPinnedHeader_v23.alpha = 1.0;
+            TRBPinnedHeader_v23.layer.opacity = 1.0f;
+        }
     } else {
         header.transform = CGAffineTransformIdentity;
         header.layer.opacity = 1.0f;
@@ -1317,10 +1381,12 @@ static void TRBRefreshGlobalGlassHeader(UIWindow *window) {
             header.layer.zPosition = 99999999.0;
 
             if (TRBTarabPlusSheetOpen_v22) {
-                header.hidden = YES;
-                header.alpha = 0.0;
-                header.userInteractionEnabled = NO;
-                header.layer.opacity = 0.0f;
+                // Header is pinned behind the sheet; leave its hierarchy and position untouched.
+                if (TRBPinnedHeader_v23) {
+                    TRBPinnedHeader_v23.hidden = NO;
+                    TRBPinnedHeader_v23.alpha = 1.0;
+                    TRBPinnedHeader_v23.layer.opacity = 1.0f;
+                }
             } else {
                 header.layer.opacity = 1.0f;
                 header.hidden = NO;
@@ -1996,7 +2062,7 @@ static void TRBApplySavedRuntimeFrame(void) {
     static BOOL trbHadSheet_v21 = NO;
     BOOL sheetVisible = TRBIsTarabPlusSheetPresented_v20();
     if (sheetVisible != trbHadSheet_v21) {
-        TRBSetCustomTopHeaderHidden_v20(sheetVisible);
+        /* v23: real header is pinned instead of hidden */
         trbHadSheet_v21 = sheetVisible;
     }
     for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {

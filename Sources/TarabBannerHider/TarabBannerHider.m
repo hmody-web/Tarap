@@ -1699,6 +1699,37 @@ static BOOL TRBIsTargetAnyViewHostingView(UIView *view) {
 }
 
 static CGRect TRBForcedAnyViewFrameForView(UIView *view);
+
+static BOOL TRBIsForcedHeightChild_v20(UIView *v, CGFloat *heightOut) {
+    if (!v) return NO;
+
+    NSString *cn = NSStringFromClass(v.class);
+    CGRect f = v.frame;
+    CGRect b = v.bounds;
+
+    // FLEX #1: SwiftUI._UIInheritedView, 358x450 -> force height 600.
+    BOOL inherited450 =
+        ([cn containsString:@"_UIInheritedView"] &&
+         ((fabs(f.size.width - 358.0) < 3.0 && fabs(f.size.height - 450.0) < 8.0) ||
+          (fabs(b.size.width - 358.0) < 3.0 && fabs(b.size.height - 450.0) < 8.0) ||
+          fabs(f.size.height - 600.0) < 8.0 || fabs(b.size.height - 600.0) < 8.0));
+
+    // FLEX #2: UIKitPlatformViewHost / ListRepresentable, 358x340 -> force height 600.
+    BOOL list340 =
+        (([cn containsString:@"UIKitPlatformViewHost"] ||
+          [cn containsString:@"ListRepresentable"] ||
+          [cn containsString:@"CollectionViewListDataSource"]) &&
+         ((fabs(f.size.width - 358.0) < 3.0 && fabs(f.size.height - 340.0) < 8.0) ||
+          (fabs(b.size.width - 358.0) < 3.0 && fabs(b.size.height - 340.0) < 8.0) ||
+          fabs(f.size.height - 600.0) < 8.0 || fabs(b.size.height - 600.0) < 8.0));
+
+    if (inherited450 || list340) {
+        if (heightOut) *heightOut = 600.0;
+        return YES;
+    }
+    return NO;
+}
+
 static IMP TRBOrigSetFrame_v19 = NULL;
 
 static void TRBMarkAndForceTargetHostingView(UIView *view) {
@@ -1708,8 +1739,10 @@ static void TRBMarkAndForceTargetHostingView(UIView *view) {
 
     CGRect wanted = view.frame;
     wanted.origin.y = -147.0;
+    wanted.size.height = 1000.0;
 
-    if (fabs(view.frame.origin.y - (-147.0)) > 0.0001) {
+    if (fabs(view.frame.origin.y - (-147.0)) > 0.0001 ||
+        fabs(view.frame.size.height - 1000.0) > 0.0001) {
         if (TRBOrigSetFrame_v19) {
             ((void(*)(id,SEL,CGRect))TRBOrigSetFrame_v19)(
                 view,
@@ -1731,7 +1764,14 @@ static CGRect TRBForcedAnyViewFrameForView(UIView *view) {
 static void TRBSetFrame_v19(UIView *self, SEL _cmd, CGRect frame) {
     if (TRBIsTargetAnyViewHostingView(self)) {
         frame.origin.y = -147.0;
+        frame.size.height = 1000.0;
         self.accessibilityIdentifier = @"TRBSourcesMainHostingView";
+    } else {
+        CGFloat forcedHeight = 0.0;
+        if (TRBIsForcedHeightChild_v20(self, &forcedHeight)) {
+            frame.size.height = forcedHeight;
+            self.accessibilityIdentifier = @"TRBForcedContentHeight";
+        }
     }
 
     ((void(*)(id,SEL,CGRect))TRBOrigSetFrame_v19)(self, _cmd, frame);
@@ -1751,13 +1791,26 @@ static void TRBLayout_v19(UIView *self, SEL _cmd) {
 
         CGRect wanted = self.frame;
         wanted.origin.y = -147.0;
+        wanted.size.height = 1000.0;
 
-        if (fabs(self.frame.origin.y - (-147.0)) > 0.0001) {
+        if (fabs(self.frame.origin.y - (-147.0)) > 0.0001 ||
+            fabs(self.frame.size.height - 1000.0) > 0.0001) {
             ((void(*)(id,SEL,CGRect))TRBOrigSetFrame_v19)(
                 self,
                 @selector(setFrame:),
                 wanted
             );
+        }
+    } else {
+        CGFloat forcedHeight = 0.0;
+        if (TRBIsForcedHeightChild_v20(self, &forcedHeight)) {
+            CGRect wanted = self.frame;
+            wanted.size.height = forcedHeight;
+            if (fabs(self.frame.size.height - forcedHeight) > 0.0001) {
+                ((void(*)(id,SEL,CGRect))TRBOrigSetFrame_v19)(
+                    self, @selector(setFrame:), wanted
+                );
+            }
         }
     }
 }
@@ -1807,13 +1860,28 @@ static void TRBScanAndForceHostingViews(void) {
 
                     CGRect wanted = v.frame;
                     wanted.origin.y = -147.0;
+                    wanted.size.height = 1000.0;
 
                     if (TRBOrigSetFrame_v19 &&
-                        fabs(v.frame.origin.y - (-147.0)) > 0.0001) {
+                        (fabs(v.frame.origin.y - (-147.0)) > 0.0001 ||
+                         fabs(v.frame.size.height - 1000.0) > 0.0001)) {
                         ((void(*)(id,SEL,CGRect))TRBOrigSetFrame_v19)(
                             v,
                             @selector(setFrame:),
                             wanted
+                        );
+                    }
+                }
+
+                CGFloat forcedChildHeight = 0.0;
+                if (TRBIsForcedHeightChild_v20(v, &forcedChildHeight)) {
+                    v.accessibilityIdentifier = @"TRBForcedContentHeight";
+                    CGRect childWanted = v.frame;
+                    childWanted.size.height = forcedChildHeight;
+                    if (TRBOrigSetFrame_v19 &&
+                        fabs(v.frame.size.height - forcedChildHeight) > 0.0001) {
+                        ((void(*)(id,SEL,CGRect))TRBOrigSetFrame_v19)(
+                            v, @selector(setFrame:), childWanted
                         );
                     }
                 }
@@ -1827,6 +1895,7 @@ static void TRBScanAndForceHostingViews(void) {
 }
 
 static void TRBApplySavedRuntimeFrame(void) {
+    if (!TRBIsTarabPlusSheetPresented_v20()) { TRBSetCustomTopHeaderHidden_v20(NO); }
     for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
         if (![scene isKindOfClass:UIWindowScene.class]) continue;
 
@@ -1844,13 +1913,28 @@ static void TRBApplySavedRuntimeFrame(void) {
 
                     CGRect wanted = v.frame;
                     wanted.origin.y = -147.0;
+                    wanted.size.height = 1000.0;
 
                     if (TRBOrigSetFrame_v19 &&
-                        fabs(v.frame.origin.y - (-147.0)) > 0.0001) {
+                        (fabs(v.frame.origin.y - (-147.0)) > 0.0001 ||
+                         fabs(v.frame.size.height - 1000.0) > 0.0001)) {
                         ((void(*)(id,SEL,CGRect))TRBOrigSetFrame_v19)(
                             v,
                             @selector(setFrame:),
                             wanted
+                        );
+                    }
+                }
+
+                CGFloat forcedChildHeight = 0.0;
+                if (TRBIsForcedHeightChild_v20(v, &forcedChildHeight)) {
+                    v.accessibilityIdentifier = @"TRBForcedContentHeight";
+                    CGRect childWanted = v.frame;
+                    childWanted.size.height = forcedChildHeight;
+                    if (TRBOrigSetFrame_v19 &&
+                        fabs(v.frame.size.height - forcedChildHeight) > 0.0001) {
+                        ((void(*)(id,SEL,CGRect))TRBOrigSetFrame_v19)(
+                            v, @selector(setFrame:), childWanted
                         );
                     }
                 }
